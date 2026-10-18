@@ -1,0 +1,1 @@
+{"$schema":"../gen/schemas/desktop-schema.json","identifier":"main-capability","description":"Local SARGE window with native dialogs; file operations are restricted by Rust commands.","windows":["main"],"permissions":["core:default"]}

@@ -1,0 +1,7 @@
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+.DS_Store
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
