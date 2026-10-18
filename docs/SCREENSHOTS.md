@@ -1,6 +1,6 @@
 # Windows screenshot checklist
 
-Capture the installed SARGE Desktop **0.3.0-beta.2 or newer** on the Windows PC using the current catalog. Existing README images were captured on beta.1; replace them only with actual new captures. No Docker screens, generated screens or fabricated inventory.
+Capture the installed SARGE Desktop **0.3.0-beta.2 or newer** on the Windows PC using the current catalog. Current README images were captured on beta.2; replace them with actual new captures when the UI or version changes. No Docker screens, generated screens or fabricated inventory.
 
 Use **SARGE · Default** for all standard screens. Use one consistent window size (at least 1380 × 900; wider if needed for columns), keep the app title/version visible where possible and close unrelated dialogs and transient notices. Review the real names, paths and image previews for suitability before publishing.
 
