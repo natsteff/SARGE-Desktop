@@ -16,8 +16,9 @@ Windows 10/11 x64 is the primary target. No Docker, Python, helper, or ExifTool 
 - Register multiple drives or folders with nicknames, descriptions, volume identity and dates extracted from folder names.
 - Scan nested folders without a depth limit; directory links are not followed.
 - Match RAW identifiers in export filenames and parent folders; review suggestions and confirm relationships manually.
-- Sort every optional metadata column, customize actual and mapped EXIF columns, filter catalog-derived values and ranges, and export CSV.
-- Build filename mappings visually using an example file, highlighted text, field picklists and file-type checkboxes. The default CR2 rule maps the prefix before `_` to Camera body (Mapped), separately from actual EXIF.
+- Sort every optional metadata column, customize actual and mapped EXIF columns, and export CSV. **EXIF Filters** provides searchable catalog-derived choices, missing values and numeric/date ranges, including offline sources.
+- Read shutter speeds in conventional form, such as **0.6 s** or **1/250 s**, while keeping numeric precision for sorting and filtering.
+- Build filename mappings visually in **Filename conventions**, using an example file, highlighted text, field picklists and file-type checkboxes. The default CR2 rule maps the prefix before `_` to Camera body (Mapped), separately from actual EXIF.
 - Keep metadata and optional previews in the local SQLite catalog for offline browsing.
 - Open original photos or reveal them in Explorer when their source is available.
 - Run Scan only, Scan and copy, or Copy only on an individual source or all available registered sources. Confirm before skipping offline sources.
