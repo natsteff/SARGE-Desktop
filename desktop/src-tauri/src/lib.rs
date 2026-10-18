@@ -1,6 +1,7 @@
 mod backup;
 mod engine;
 mod jobs;
+mod mappings;
 mod model;
 mod previews;
 #[cfg(test)]
@@ -70,10 +71,10 @@ fn get_state(rt: tauri::State<Runtime>) -> Result<Value> {
         source.online = volumes::available(&source.path, &source.volume_id);
     }
     let files = model::photos(&c)?;
-    let mut q=c.prepare("SELECT id,source_id,name,mode,status,started,finished,count,copied,identical,skipped,errors,omitted,previews,unavailable FROM jobs ORDER BY started DESC,rowid DESC LIMIT 100").map_err(|e|e.to_string())?;
-    let rows=q.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"source_id":r.get::<_,String>(1)?,"name":r.get::<_,String>(2)?,"mode":r.get::<_,String>(3)?,"status":r.get::<_,String>(4)?,"started":r.get::<_,String>(5)?,"finished":r.get::<_,Option<String>>(6)?,"count":r.get::<_,i64>(7)?,"copied":r.get::<_,i64>(8)?,"identical":r.get::<_,i64>(9)?,"skipped":r.get::<_,i64>(10)?,"errors":r.get::<_,String>(11)?,"omitted":r.get::<_,i64>(12)?,"previews":r.get::<_,i64>(13)?,"unavailable":r.get::<_,i64>(14)?}))).map_err(|e|e.to_string())?.collect::<std::result::Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
+    let mut q=c.prepare("SELECT id,source_id,name,mode,status,started,finished,count,copied,identical,skipped,errors,omitted,previews,unavailable,batch_id,batch_bulk FROM jobs WHERE coalesce(nullif(batch_id,''),id) IN (SELECT coalesce(nullif(batch_id,''),id) FROM jobs GROUP BY coalesce(nullif(batch_id,''),id) ORDER BY max(rowid) DESC LIMIT 100) ORDER BY started DESC,rowid DESC").map_err(|e|e.to_string())?;
+    let rows=q.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"source_id":r.get::<_,String>(1)?,"name":r.get::<_,String>(2)?,"mode":r.get::<_,String>(3)?,"status":r.get::<_,String>(4)?,"started":r.get::<_,String>(5)?,"finished":r.get::<_,Option<String>>(6)?,"count":r.get::<_,i64>(7)?,"copied":r.get::<_,i64>(8)?,"identical":r.get::<_,i64>(9)?,"skipped":r.get::<_,i64>(10)?,"errors":r.get::<_,String>(11)?,"omitted":r.get::<_,i64>(12)?,"previews":r.get::<_,i64>(13)?,"unavailable":r.get::<_,i64>(14)?,"batch_id":r.get::<_,String>(15)?,"batch_bulk":r.get::<_,bool>(16)?}))).map_err(|e|e.to_string())?.collect::<std::result::Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
     Ok(
-        json!({"inventory_columns":c.query_row("SELECT value FROM settings WHERE key='inventory_columns'",[],|r|r.get::<_,String>(0)).ok(),"sources":sources,"files":files,"jobs":rows,"busy":rt.busy.load(Ordering::SeqCst),"catalog_path":rt.db.to_string_lossy(),"previews_enabled":previews::enabled(&c),"preview_bytes":c.query_row("SELECT coalesce(sum(length(data)),0) FROM previews",[],|r|r.get::<_,i64>(0)).unwrap_or(0)}),
+        json!({"filename_rules":mappings::rules(&c)?,"inventory_columns":c.query_row("SELECT value FROM settings WHERE key='inventory_columns'",[],|r|r.get::<_,String>(0)).ok(),"sources":sources,"files":files,"jobs":rows,"busy":rt.busy.load(Ordering::SeqCst),"catalog_path":rt.db.to_string_lossy(),"previews_enabled":previews::enabled(&c),"preview_bytes":c.query_row("SELECT coalesce(sum(length(data)),0) FROM previews",[],|r|r.get::<_,i64>(0)).unwrap_or(0)}),
     )
 }
 #[tauri::command]
@@ -244,15 +245,7 @@ fn start_jobs(rt: tauri::State<Runtime>, request: JobRequest) -> Result<Value> {
         if request.mode == "previews" && !previews::enabled(&c) {
             return Err("Enable stored previews first.".into());
         }
-        let tx = c.transaction().map_err(|e| e.to_string())?;
-        let mut jobs = Vec::new();
-        for source in selected {
-            let id = uuid::Uuid::new_v4().to_string();
-            tx.execute("INSERT INTO jobs(id,source_id,name,mode,status,started) VALUES(?,?,?,?,'queued',?)",params![id,source.id,source.name,request.mode,model::stamp()]).map_err(|e|e.to_string())?;
-            jobs.push((id, source));
-        }
-        tx.commit().map_err(|e| e.to_string())?;
-        Ok(jobs)
+        model::enqueue(&mut c, selected, &request.mode, request.bulk)
     })();
     let jobs = match result {
         Ok(j) => j,
@@ -419,8 +412,55 @@ fn open_photo(rt: tauri::State<Runtime>, id: i64) -> Result<()> {
     })
 }
 #[tauri::command]
+fn test_filename_rules(rules: Vec<mappings::Rule>, names: Vec<String>) -> Result<Value> {
+    mappings::validate(&rules)?;
+    if names.len() > 100 || names.iter().any(|n| n.len() > 1024) {
+        return Err("Preview up to 100 filenames.".into());
+    }
+    Ok(json!(names
+        .iter()
+        .map(|n| json!({"name":n,"mapped":mappings::extract(n,&rules)}))
+        .collect::<Vec<_>>()))
+}
+#[tauri::command]
+fn save_filename_rules(rt: tauri::State<Runtime>, rules: Vec<mappings::Rule>) -> Result<usize> {
+    if rt
+        .busy
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err("Wait for running jobs to finish before changing naming conventions.".into());
+    }
+    let result = (|| {
+        let mut c = model::connection(&rt.db)?;
+        mappings::save(&mut c, &rules)
+    })();
+    rt.busy.store(false, Ordering::SeqCst);
+    result
+}
+#[tauri::command]
+async fn pick_example_file(app: tauri::AppHandle) -> Result<Option<String>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .add_filter("Supported images", &["cr2", "jpg", "jpeg", "png"])
+            .blocking_pick_file()
+            .map(|p| {
+                p.into_path().map_err(|e| e.to_string()).map(|p| {
+                    p.file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
+                })
+            })
+            .transpose()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
 fn save_inventory_columns(rt: tauri::State<Runtime>, columns: Vec<String>) -> Result<()> {
-    if columns.len() > 20 || columns.iter().any(|v| v.len() > 40) {
+    if columns.len() > 64 || columns.iter().any(|v| v.len() > 40) {
         return Err("Invalid column choices".into());
     }
     let c = model::connection(&rt.db)?;
@@ -552,7 +592,10 @@ pub fn run() {
             open_photo,
             reveal_photo,
             backup_catalog,
-            save_inventory_columns
+            save_inventory_columns,
+            save_filename_rules,
+            test_filename_rules,
+            pick_example_file
         ])
         .run(tauri::generate_context!())
         .expect("SARGE desktop failed to start");

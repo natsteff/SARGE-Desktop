@@ -1,10 +1,10 @@
-# SARGE Desktop — Windows Beta 0.3.0-beta.1
+# SARGE Desktop — Windows Beta 0.3.0-beta.2
 
 Windows-focused native desktop edition. macOS remains a bonus development target. The earlier Docker project is retained separately and is no longer the development focus.
 
 ## Windows test build
 
-Prefer the installer on the [Windows desktop beta release](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.1), once available. For development builds, download the **SARGE-Windows-x64-Beta** artifact from the latest successful **Build SARGE Desktop** GitHub Actions run on this branch. Extract the artifact ZIP and run the `SARGE Desktop_*_x64-setup.exe` installer. GitHub Actions artifact downloads require signing into GitHub. An unsigned prerelease installer may also be attached to GitHub Releases.
+Prefer the installer on the [Windows desktop beta release](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.2), once available. For development builds, download the **SARGE-Windows-x64-Beta** artifact from the latest successful **Build SARGE Desktop** GitHub Actions run on this branch. Extract the artifact ZIP and run the `SARGE Desktop_*_x64-setup.exe` installer. GitHub Actions artifact downloads require signing into GitHub. An unsigned prerelease installer may also be attached to GitHub Releases.
 
 This beta targets Windows 10/11 x64 and installs for the current user. No Docker, Python, Tcl/Tk, PowerShell scanner, or ExifTool installation is required. The installer uses Microsoft's WebView2 bootstrapper if the runtime is absent; that step may require an internet connection. The app works offline afterward. Installer downloads are unsigned during this beta, so Windows may warn or apply organizational restrictions.
 
@@ -73,3 +73,17 @@ Use **Customize columns** in Photo inventory for camera, lens, capture time, dim
 **Open file location** reveals and selects the original in Windows Explorer (Finder on Mac), after checking the registered volume and file. It is disabled for offline or missing files.
 
 Existing previews regenerate only during scans when their source file or matched preview changes. **Generate missing previews** fills empty entries without replacing existing cached images. Unchanged polling retains thumbnail elements and does not repeatedly fetch their image data. Scans traverse nested folders without a depth limit; directory symlinks/junctions are not followed.
+
+## Metadata sorting, filters, and filename mappings (beta.2)
+
+Every optional inventory column is sortable. Numeric values (including shutter exposure duration and dimensions by megapixels) sort numerically; capture/created/modified fields sort by date. Unknown values remain last. Shutter display uses conventional short fractions such as 1/250 s and readable longer values such as 0.6 s; saved precision is retained.
+
+**EXIF Filters** opens a dialog with searchable, multi-select values derived from the catalog, including an explicit Not available choice. Numeric fields also offer minimum/maximum ranges; dimensions ranges use megapixels, shutter ranges use seconds, and date fields use date ranges. Choices within a field are OR; different fields and the existing source/type/match/search controls are AND. Counts reflect other filters, and selected values remain available even with zero matches. Filters work offline and independently of displayed columns. Active filter chips can be removed individually or cleared together. Filter selections last for the current app session.
+
+Open **Filename conventions** in the sidebar. The enabled default rule extracts the prefix before `_` from CR2 names: `1DX_1234.cr2` becomes Camera body (Mapped) = 1DX. This is a filename label, not proof of the camera model. EXIF remains unchanged. To build a rule, choose a catalog example or use Choose example file, highlight its value with the mouse or Shift + arrows, click Use highlighted text, choose the mapped field and file types, then test against saved filenames. Use this rule returns to settings; Save settings and apply persists all changes. First enabled matching rule wins per field. Rules can be edited, disabled, removed and reordered.
+
+The builder captures text after a fixed prefix and before the separator following the highlighted value (or through the end of the filename). Extensions are chosen with checkboxes, not typed templates. All supported image types means CR2/JPG/JPEG/PNG. Select only the intended portion; preview results before applying a rule. Changing rules recalculates mapped values using saved filenames, including offline and removed locations, without reading or modifying original photos. The rules and derived values are included in catalog backups. Folder-date detection is separate and continues unchanged.
+
+Mapped fields are independent choices in Customize columns and EXIF Filters, paired beside their related actual EXIF column when both are selected. Camera model (EXIF), Filename prefix and Camera body (Mapped) have distinct meanings. File details show saved mapped values and rule IDs alongside embedded metadata.
+
+New bulk scan/copy actions share a persisted batch ID and appear as one activity block with totals, overall status and expandable per-location results/errors. Legacy jobs from before beta.2 remain separate because their original batch identity was not recorded; timestamps alone are not used to guess membership. Activity retains the newest 100 operations with all their location results.

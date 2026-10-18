@@ -5,9 +5,9 @@
 **Scole’s Archive of RAWs, Galleries & Exports**  
 *Reporting for photo duty*
 
-[**Download Windows Beta 0.3.0-beta.1**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.1) · [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
+[**Download Windows Beta 0.3.0-beta.2**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.2) · [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
 
-SARGE inventories photos across local folders, USB drives and external disks. Keep searchable details and optional previews when drives are offline, match Canon CR2 originals to JPG/PNG exports, and copy selected categories without overwriting different files.
+SARGE’s main purpose is to **inventory photo images across multiple drives**, including USB and external drives that are currently disconnected. It focuses on **matching Canon RAW (CR2) originals to JPG exports**, keeping detailed per-image records and aggregate counts and sizes across your collection. Copy matched RAWs and exports—or unmatched files—to selected destinations to support storage and space-saving management. Copies are verified; SARGE does not delete your originals or reclaim space automatically.
 
 Windows 10/11 x64 is the primary target. No Docker, Python, helper, or ExifTool installation is required. macOS is a bonus development target. This beta installer is unsigned and needs further hands-on testing.
 
@@ -16,19 +16,21 @@ Windows 10/11 x64 is the primary target. No Docker, Python, helper, or ExifTool 
 - Register multiple drives or folders with nicknames, descriptions, volume identity and dates extracted from folder names.
 - Scan nested folders without a depth limit; directory links are not followed.
 - Match RAW identifiers in export filenames and parent folders; review suggestions and confirm relationships manually.
-- Search and sort inventory, customize columns for saved EXIF details, and export CSV.
+- Sort every optional metadata column, customize actual and mapped EXIF columns, filter catalog-derived values and ranges, and export CSV.
+- Build filename mappings visually using an example file, highlighted text, field picklists and file-type checkboxes. The default CR2 rule maps the prefix before `_` to Camera body (Mapped), separately from actual EXIF.
 - Keep metadata and optional previews in the local SQLite catalog for offline browsing.
 - Open original photos or reveal them in Explorer when their source is available.
 - Run Scan only, Scan and copy, or Copy only on an individual source or all available registered sources. Confirm before skipping offline sources.
 - Copy matched, unmatched or both categories, preserving folders, verifying SHA-256 and protecting existing different files.
-- View online/offline counts, hide offline location cards, and monitor scan activity.
+- View prominent online/offline counts and per-location file/RAW/export/matched/unmatched counts and sizes, including offline catalogs.
+- Monitor bulk scan/copy operations as one activity block with aggregate progress and expandable location results.
 - Back up the catalog, cached previews and preferences in one archive with restore instructions.
 
 ## Appearance and screenshots
 
 Use **Appearance** in the sidebar to switch between **SARGE · Default**, with light backgrounds and olive accents, and **Solly’s Soldiers · Dark**, with white text and red, blue and green accents. The logo changes with the theme. Your choice is remembered on this computer.
 
-These captures show the installed Windows beta 0.3.0-beta.1 with a small test photo catalog. See the [capture checklist](docs/SCREENSHOTS.md).
+These captures show the installed Windows beta 0.3.0-beta.1 with a small test photo catalog. Updated captures of the beta.2 summaries, EXIF filters and filename configuration are pending; the images below have not been relabeled as the new version. See the [capture checklist](docs/SCREENSHOTS.md).
 
 Photo inventory in the default theme, with cached previews, RAW/export match status and saved camera metadata.
 
@@ -70,5 +72,9 @@ pnpm dev
 Developers need Rust stable, Node.js 22+, pnpm and the platform build tools. GitHub Actions tests Windows/macOS and builds the Windows installer. Development can continue on either platform. [Detailed instructions](desktop/README.md).
 
 This independent repository starts from the desktop implementation developed in the earlier SARGE project, through commit `ecca779`. The Docker application is preserved in that separate repository and is no longer the focus of development. No Docker services, scanner helpers or inventory import scripts are included here.
+
+## Development disclaimer
+
+SARGE Desktop was developed using **OpenAI Codex**, with human direction and review. AI-assisted development and automated tests do not guarantee error-free behavior. This beta still needs hands-on validation: test scan and copy workflows on a small collection with backups before using them for storage management.
 
 AGPL-3.0-only. See [LICENSE](LICENSE).

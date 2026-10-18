@@ -160,12 +160,23 @@ fn metadata(path: &Path) -> String {
             .read_from_container(&mut std::io::BufReader::new(file))
             .ok()?;
         let mut values = serde_json::Map::new();
+        let mut numbers = serde_json::Map::new();
         for field in exif.fields().filter(|f| f.ifd_num == exif::In::PRIMARY) {
+            let number = match &field.value {
+                exif::Value::Rational(v) => v.first().filter(|r| r.denom != 0).map(|r| r.to_f64()),
+                exif::Value::Short(v) => v.first().map(|v| *v as f64),
+                exif::Value::Long(v) => v.first().map(|v| *v as f64),
+                _ => None,
+            };
+            if let Some(number) = number {
+                numbers.insert(field.tag.to_string(), serde_json::json!(number));
+            }
             values.insert(
                 field.tag.to_string(),
                 field.display_value().with_unit(&exif).to_string().into(),
             );
         }
+        values.insert("SargeNumeric".into(), serde_json::Value::Object(numbers));
         Some(serde_json::Value::Object(values).to_string())
     })();
     let mut values: serde_json::Value =
@@ -188,7 +199,7 @@ fn metadata(path: &Path) -> String {
             values["ImageLength"] = height.into();
         }
     }
-    values["SargeMetadataVersion"] = 2.into();
+    values["SargeMetadataVersion"] = 3.into();
     values.to_string()
 }
 pub fn scan(
@@ -206,6 +217,7 @@ pub fn scan(
         [&source.id],
     )
     .map_err(|e| e.to_string())?;
+    let mapping_rules = crate::mappings::rules(c)?;
     let root = base.file_name().unwrap_or_default().to_string_lossy();
     let mut count = 0;
     let mut errors = Vec::new();
@@ -267,10 +279,19 @@ pub fn scan(
             .filter(|v| {
                 serde_json::from_str::<serde_json::Value>(v)
                     .ok()
-                    .is_some_and(|v| v["SargeMetadataVersion"] == 2)
+                    .is_some_and(|v| v["SargeMetadataVersion"] == 3)
             })
             .unwrap_or_else(|| metadata(p));
         c.execute("INSERT INTO files(source_id,path,name,stem,kind,size,mtime,date,session,camera_prefix,image_number,metadata,present,seen) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?) ON CONFLICT(source_id,path) DO UPDATE SET size=excluded.size,mtime=excluded.mtime,date=excluded.date,session=excluded.session,camera_prefix=excluded.camera_prefix,image_number=excluded.image_number,metadata=excluded.metadata,present=1,seen=excluded.seen",params![source.id,rel,name,stem,kind,info.len() as i64,modified,date,session,camera,number,meta,job]).map_err(|e|e.to_string())?;
+        c.execute(
+            "UPDATE files SET mapped=? WHERE source_id=? AND path=?",
+            params![
+                crate::mappings::extract(&name, &mapping_rules).to_string(),
+                source.id,
+                rel
+            ],
+        )
+        .map_err(|e| e.to_string())?;
         count += 1;
         if count % 50 == 0 {
             c.execute("UPDATE jobs SET count=? WHERE id=?", params![count, job])

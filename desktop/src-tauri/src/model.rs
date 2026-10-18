@@ -15,7 +15,7 @@ pub fn connection(path: &Path) -> Result<Connection> {
     Ok(c)
 }
 pub fn init(path: &Path) -> Result<()> {
-    let c = connection(path)?;
+    let mut c = connection(path)?;
     c.execute_batch("PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS sources(id TEXT PRIMARY KEY,name TEXT NOT NULL,drive_name TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',path TEXT NOT NULL,volume_id TEXT NOT NULL DEFAULT '',volume_label TEXT NOT NULL DEFAULT '',drive_letter TEXT NOT NULL DEFAULT '',folder_date TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0,last_scan TEXT,last_complete TEXT);
 CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY,source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,path TEXT NOT NULL,name TEXT NOT NULL,stem TEXT NOT NULL,kind TEXT NOT NULL,size INTEGER NOT NULL,mtime TEXT NOT NULL,date TEXT NOT NULL,session TEXT NOT NULL,camera_prefix TEXT NOT NULL,image_number TEXT NOT NULL,metadata TEXT NOT NULL DEFAULT '{}',present INTEGER NOT NULL DEFAULT 1,seen TEXT NOT NULL,UNIQUE(source_id,path));
@@ -42,6 +42,38 @@ UPDATE jobs SET status='interrupted',finished=datetime('now') WHERE status IN ('
             .map_err(|e| e.to_string())?;
         }
     }
+    if !columns.iter().any(|v| v == "batch_id") {
+        c.execute(
+            "ALTER TABLE jobs ADD COLUMN batch_id TEXT NOT NULL DEFAULT ''",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    if !columns.iter().any(|v| v == "batch_bulk") {
+        c.execute(
+            "ALTER TABLE jobs ADD COLUMN batch_bulk INTEGER NOT NULL DEFAULT 0",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    c.execute_batch("CREATE INDEX IF NOT EXISTS jobs_batch ON jobs(batch_id);")
+        .map_err(|e| e.to_string())?;
+    let mapped_exists: bool = c
+        .prepare("PRAGMA table_info(files)")
+        .map_err(|e| e.to_string())?
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| e.to_string())?
+        .filter_map(|v| v.ok())
+        .any(|v| v == "mapped");
+    if !mapped_exists {
+        c.execute(
+            "ALTER TABLE files ADD COLUMN mapped TEXT NOT NULL DEFAULT '{}'",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    drop(q);
+    crate::mappings::initialize(&mut c)?;
     Ok(())
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -100,6 +132,7 @@ pub struct Photo {
     pub camera_prefix: String,
     pub image_number: String,
     pub metadata: String,
+    pub mapped: String,
     pub present: bool,
     pub source_name: String,
     pub matched: bool,
@@ -108,7 +141,7 @@ pub struct Photo {
     pub preview_revision: String,
 }
 pub fn photos(c: &Connection) -> Result<Vec<Photo>> {
-    let mut s=c.prepare("SELECT f.id,f.source_id,f.path,f.name,f.stem,f.kind,f.size,f.mtime,f.date,f.session,f.camera_prefix,f.image_number,f.metadata,f.present,s.name,EXISTS(SELECT 1 FROM matches m JOIN files r ON r.id=m.raw_id JOIN files e ON e.id=m.edited_id JOIN sources rs ON rs.id=r.source_id JOIN sources es ON es.id=e.source_id WHERE (m.raw_id=f.id OR m.edited_id=f.id) AND m.status='confirmed' AND r.present AND e.present AND NOT rs.archived AND NOT es.archived),EXISTS(SELECT 1 FROM matches m JOIN files r ON r.id=m.raw_id JOIN files e ON e.id=m.edited_id JOIN sources rs ON rs.id=r.source_id JOIN sources es ON es.id=e.source_id WHERE (m.raw_id=f.id OR m.edited_id=f.id) AND m.status='suggested' AND r.present AND e.present AND NOT rs.archived AND NOT es.archived),EXISTS(SELECT 1 FROM previews p WHERE p.file_id=f.id AND p.mtime=f.mtime AND p.size=f.size) ,coalesce((SELECT p.stamp || ':' || length(p.data) FROM previews p WHERE p.file_id=f.id AND p.mtime=f.mtime AND p.size=f.size),'') FROM files f JOIN sources s ON s.id=f.source_id WHERE s.archived=0 ORDER BY f.name COLLATE NOCASE").map_err(|e|e.to_string())?;
+    let mut s=c.prepare("SELECT f.id,f.source_id,f.path,f.name,f.stem,f.kind,f.size,f.mtime,f.date,f.session,f.camera_prefix,f.image_number,f.metadata,f.present,s.name,EXISTS(SELECT 1 FROM matches m JOIN files r ON r.id=m.raw_id JOIN files e ON e.id=m.edited_id JOIN sources rs ON rs.id=r.source_id JOIN sources es ON es.id=e.source_id WHERE (m.raw_id=f.id OR m.edited_id=f.id) AND m.status='confirmed' AND r.present AND e.present AND NOT rs.archived AND NOT es.archived),EXISTS(SELECT 1 FROM matches m JOIN files r ON r.id=m.raw_id JOIN files e ON e.id=m.edited_id JOIN sources rs ON rs.id=r.source_id JOIN sources es ON es.id=e.source_id WHERE (m.raw_id=f.id OR m.edited_id=f.id) AND m.status='suggested' AND r.present AND e.present AND NOT rs.archived AND NOT es.archived),EXISTS(SELECT 1 FROM previews p WHERE p.file_id=f.id AND p.mtime=f.mtime AND p.size=f.size) ,coalesce((SELECT p.stamp || ':' || length(p.data) FROM previews p WHERE p.file_id=f.id AND p.mtime=f.mtime AND p.size=f.size),''),f.mapped FROM files f JOIN sources s ON s.id=f.source_id WHERE s.archived=0 ORDER BY f.name COLLATE NOCASE").map_err(|e|e.to_string())?;
     let rows = s
         .query_map([], |r| {
             Ok(Photo {
@@ -131,9 +164,30 @@ pub fn photos(c: &Connection) -> Result<Vec<Photo>> {
                 suggested: r.get(16)?,
                 preview: r.get(17)?,
                 preview_revision: r.get(18)?,
+                mapped: r.get(19)?,
             })
         })
         .map_err(|e| e.to_string())?;
     rows.collect::<std::result::Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())
+}
+
+pub fn enqueue(
+    c: &mut Connection,
+    selected: Vec<Source>,
+    mode: &str,
+    bulk: bool,
+) -> Result<Vec<(String, Source)>> {
+    let tx = c.transaction().map_err(|e| e.to_string())?;
+    let batch_id = uuid::Uuid::new_v4().to_string();
+    let started = stamp();
+    let batch_bulk = bulk || selected.len() > 1;
+    let mut jobs = Vec::new();
+    for source in selected {
+        let id = uuid::Uuid::new_v4().to_string();
+        tx.execute("INSERT INTO jobs(id,source_id,name,mode,status,started,batch_id,batch_bulk) VALUES(?,?,?,?,'queued',?,?,?)",rusqlite::params![id,source.id,source.name,mode,started,batch_id,batch_bulk]).map_err(|e|e.to_string())?;
+        jobs.push((id, source));
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(jobs)
 }

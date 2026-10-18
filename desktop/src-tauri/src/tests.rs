@@ -610,3 +610,120 @@ fn backup_contains_consistent_database_previews_preferences_and_manifest() {
     assert!(bytes.windows(13).any(|v| v == b"manifest.json"));
     assert!(bytes.windows(11).any(|v| v == b"RESTORE.txt"));
 }
+
+#[test]
+fn filename_rules_default_scope_precedence_and_offline_reapplication() {
+    use crate::mappings;
+    let (_dir, db, source) = setup();
+    let root = Path::new(&source.path);
+    fs::write(root.join("1DX_1234.cr2"), b"fixture").unwrap();
+    fs::write(root.join("1DX_1234.jpg"), b"fixture").unwrap();
+    let mut c = model::connection(&db).unwrap();
+    engine::scan(&mut c, &source, "job", &AtomicBool::new(false)).unwrap();
+    let raw = model::photos(&c)
+        .unwrap()
+        .into_iter()
+        .find(|f| f.kind == "raw")
+        .unwrap();
+    let metadata = raw.metadata.clone();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&raw.mapped).unwrap()["camera_body"]["value"],
+        "1DX"
+    );
+    assert_eq!(
+        mappings::extract("1DX_1234.jpg", &mappings::defaults()),
+        serde_json::json!({})
+    );
+    assert_eq!(
+        mappings::extract("1DX_1234.CR2", &mappings::defaults())["camera_body"]["value"],
+        "1DX"
+    );
+    assert_eq!(
+        mappings::extract("_1234.cr2", &mappings::defaults()),
+        serde_json::json!({})
+    );
+    fs::remove_dir_all(root).unwrap();
+    let mut rules = mappings::defaults();
+    rules[0].extensions = vec!["cr2".into(), "jpg".into()];
+    let mut other = rules[0].clone();
+    other.id = "alternate".into();
+    other.before = "1DX_".into();
+    other.after = String::new();
+    rules.push(other.clone());
+    assert_eq!(
+        mappings::extract("1DX_1234.cr2", &rules)["camera_body"]["value"],
+        "1DX"
+    );
+    rules[0].enabled = false;
+    assert_eq!(
+        mappings::extract("1DX_1234.cr2", &rules)["camera_body"]["value"],
+        "1234"
+    );
+    mappings::save(&mut c, &rules).unwrap();
+    let raw = model::photos(&c)
+        .unwrap()
+        .into_iter()
+        .find(|f| f.kind == "raw")
+        .unwrap();
+    assert_eq!(raw.metadata, metadata);
+    assert!(raw.mapped.contains("1234"));
+    assert!(model::photos(&c)
+        .unwrap()
+        .iter()
+        .all(|f| f.mapped.contains("1234")));
+    mappings::save(&mut c, &[]).unwrap();
+    assert!(model::photos(&c).unwrap().iter().all(|f| f.mapped == "{}"));
+    model::init(&db).unwrap();
+    assert!(
+        mappings::rules(&c).unwrap().is_empty(),
+        "Explicit empty settings must survive restart"
+    );
+    other.extensions = vec!["exe".into()];
+    assert!(mappings::validate(&[other]).is_err());
+}
+#[test]
+fn existing_catalog_gets_default_mappings_without_access_to_originals() {
+    let (_dir, db, source) = setup();
+    let root = Path::new(&source.path);
+    fs::write(root.join("R5_0099.cr2"), b"fixture").unwrap();
+    let mut c = model::connection(&db).unwrap();
+    engine::scan(&mut c, &source, "job", &AtomicBool::new(false)).unwrap();
+    c.execute("DELETE FROM settings WHERE key='filename_rules'", [])
+        .unwrap();
+    c.execute("UPDATE files SET mapped='{}'", []).unwrap();
+    fs::remove_dir_all(root).unwrap();
+    model::init(&db).unwrap();
+    let photos = model::photos(&c).unwrap();
+    assert!(photos[0].mapped.contains("R5"));
+    assert!(c.prepare("SELECT batch_id,batch_bulk FROM jobs").is_ok());
+}
+#[test]
+fn bulk_queue_uses_batch_identity_instead_of_matching_timestamps() {
+    let (_dir, db, source) = setup();
+    let mut c = model::connection(&db).unwrap();
+    c.execute(
+        "INSERT INTO sources(id,name,path) VALUES('s2','Other',?)",
+        [&source.path],
+    )
+    .unwrap();
+    let sources = model::sources(&c).unwrap();
+    let first = model::enqueue(&mut c, sources.clone(), "scan", true).unwrap();
+    let second = model::enqueue(&mut c, sources, "scan", true).unwrap();
+    let batch = |id: &str| {
+        c.query_row(
+            "SELECT batch_id,batch_bulk FROM jobs WHERE id=?",
+            [id],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, bool>(1)?)),
+        )
+        .unwrap()
+    };
+    assert_eq!(batch(&first[0].0), batch(&first[1].0));
+    assert!(batch(&first[0].0).1);
+    assert_ne!(batch(&first[0].0).0, batch(&second[0].0).0);
+    assert_eq!(
+        c.query_row("SELECT batch_id FROM jobs WHERE id='job'", [], |r| r
+            .get::<_, String>(0))
+            .unwrap(),
+        ""
+    );
+}
