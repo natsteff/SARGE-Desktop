@@ -1,6 +1,6 @@
 # SARGE Desktop · Beta
 
-<img src="desktop/ui/favicon.png" alt="SARGE camera mascot" width="140">
+<img src="docs/images/sarge-logo.png" alt="SARGE — Scole’s Archive of RAWs, Galleries & Exports. No RAW left behind." width="360">
 
 **Scole’s Archive of RAWs, Galleries & Exports**  
 *Reporting for photo duty*
@@ -28,7 +28,23 @@ Windows 10/11 x64 is the primary target. No Docker, Python, helper, or ExifTool 
 
 Use **Appearance** in the sidebar to switch between **SARGE · Default**, with light backgrounds and olive accents, and **Solly’s Soldiers · Dark**, with white text and red, blue and green accents. The logo changes with the theme. Your choice is remembered on this computer.
 
-Updated screenshots from the Windows desktop application are pending capture. The old Docker screenshots are intentionally omitted because they show a different application. Planned examples use the default theme for inventory, drives and scan activity, plus one Solly’s Soldiers theme example. See the [capture checklist](docs/SCREENSHOTS.md).
+These captures show the installed Windows beta 0.3.0-beta.1 with a small test photo catalog. See the [capture checklist](docs/SCREENSHOTS.md).
+
+Photo inventory in the default theme, with cached previews, RAW/export match status and saved camera metadata.
+
+![SARGE Desktop Photo inventory in the default theme, showing photo previews, matched RAWs and exports, and saved EXIF columns](docs/images/inventory-default.png)
+
+Drives & locations shows registered sources, online/offline counts and controls for scanning, copying and backing up the catalog.
+
+![SARGE Desktop Drives and locations in the default theme, showing three registered locations, two online and one offline](docs/images/drives-default.png)
+
+Scan activity records completed jobs and their copy, skip and intentionally omitted counts.
+
+![SARGE Desktop Scan activity in the default theme, showing completed copy jobs and per-job results](docs/images/activity-default.png)
+
+The same inventory in Solly’s Soldiers · Dark, with its alternate logo and the Appearance switcher visible.
+
+![SARGE Desktop Photo inventory in Solly’s Soldiers dark theme, showing the alternate mascot logo and Appearance selector](docs/images/theme-soldiers.png)
 
 ## Updating from the desktop alpha
 
