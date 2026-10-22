@@ -136,6 +136,7 @@ pub struct Photo {
     pub present: bool,
     pub source_name: String,
     pub matched: bool,
+    pub matchable: bool,
     pub suggested: bool,
     pub preview: bool,
     pub preview_revision: String,
@@ -161,6 +162,7 @@ pub fn photos(c: &Connection) -> Result<Vec<Photo>> {
                 present: r.get(13)?,
                 source_name: r.get(14)?,
                 matched: r.get(15)?,
+                matchable: false,
                 suggested: r.get(16)?,
                 preview: r.get(17)?,
                 preview_revision: r.get(18)?,
@@ -168,8 +170,58 @@ pub fn photos(c: &Connection) -> Result<Vec<Photo>> {
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<std::result::Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())
+    let mut files = rows
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    let policy = crate::formats::settings(c)?;
+    let index: std::collections::HashMap<_, _> = files
+        .iter()
+        .map(|f| (f.id, (f.name.clone(), f.present)))
+        .collect();
+    for f in &mut files {
+        f.matchable = f.kind != "video" && policy.matchable(&f.name);
+        f.matched = false;
+        f.suggested = false;
+    }
+    let mut q = c
+        .prepare(
+            "SELECT raw_id,edited_id,status FROM matches WHERE status IN ('confirmed','suggested')",
+        )
+        .map_err(|e| e.to_string())?;
+    let mut flags: std::collections::HashMap<i64, (bool, bool)> = std::collections::HashMap::new();
+    for link in q
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+    {
+        let (r, e, status) = link.map_err(|e| e.to_string())?;
+        if index
+            .get(&r)
+            .zip(index.get(&e))
+            .is_some_and(|((rn, rp), (en, ep))| *rp && *ep && policy.pair(rn, en))
+        {
+            for id in [r, e] {
+                let v = flags.entry(id).or_default();
+                if status == "confirmed" {
+                    v.0 = true
+                } else {
+                    v.1 = true
+                }
+            }
+        }
+    }
+    for f in &mut files {
+        if let Some((matched, suggested)) = flags.get(&f.id) {
+            f.matched = *matched;
+            f.suggested = *suggested
+        }
+    }
+    Ok(files)
 }
 
 pub fn enqueue(

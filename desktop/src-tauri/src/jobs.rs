@@ -99,7 +99,7 @@ pub fn run(db: &Path, request: &JobRequest, jobs: Vec<(String, Source)>, cancel:
                 .into_iter()
                 .find(|s| s.id == source.id)
                 .ok_or("Source disappeared")?;
-            if ["copy", "scan-copy"].contains(&request.mode.as_str()) {
+            if ["copy", "scan-copy", "copy-videos"].contains(&request.mode.as_str()) {
                 if errors.is_empty() {
                     let matched = if request.bulk {
                         engine::source_destination(&request.matched, &source)?
@@ -111,8 +111,16 @@ pub fn run(db: &Path, request: &JobRequest, jobs: Vec<(String, Source)>, cancel:
                     } else {
                         request.unmatched.clone()
                     };
-                    errors.extend(engine::copy_from_sources(
-                        &c, &source, &id, &matched, &unmatched, cancel, &allowed,
+                    errors.extend(engine::copy_media_from_sources(
+                        &c,
+                        &source,
+                        &id,
+                        &matched,
+                        &unmatched,
+                        cancel,
+                        &allowed,
+                        request.include_videos,
+                        request.mode == "copy-videos",
                     )?);
                 } else {
                     errors.push("Copy skipped because scan was incomplete.".into());

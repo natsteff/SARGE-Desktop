@@ -69,6 +69,12 @@ pub fn contains_identifier(path: &str, stem: &str) -> bool {
 }
 pub fn rebuild(c: &mut Connection) -> Result<()> {
     let tx = c.transaction().map_err(|e| e.to_string())?;
+    rebuild_on(&tx)?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+pub fn rebuild_on(tx: &Connection) -> Result<()> {
+    let policy = crate::formats::settings(tx)?;
     tx.execute("DELETE FROM matches WHERE method!='manual'", [])
         .map_err(|e| e.to_string())?;
     let all = model::photos(&tx)?;
@@ -94,14 +100,16 @@ pub fn rebuild(c: &mut Connection) -> Result<()> {
         for token in digits.find_iter(&edit.path) {
             if let Some(rows) = index.get(token.as_str()) {
                 for raw in rows {
-                    if contains_identifier(&edit.path, &raw.stem) {
+                    if policy.pair(&raw.name, &edit.name)
+                        && contains_identifier(&edit.path, &raw.stem)
+                    {
                         candidates.insert(raw.id, raw);
                     }
                 }
             }
         }
         for raw in &unusual {
-            if contains_identifier(&edit.path, &raw.stem) {
+            if policy.pair(&raw.name, &edit.name) && contains_identifier(&edit.path, &raw.stem) {
                 candidates.insert(raw.id, raw);
             }
         }
@@ -143,7 +151,7 @@ pub fn rebuild(c: &mut Connection) -> Result<()> {
         }
     }
     crate::previews::invalidate_related(&tx)?;
-    tx.commit().map_err(|e| e.to_string())
+    Ok(())
 }
 pub fn mtime(m: &fs::Metadata) -> Result<String> {
     Ok(m.modified()
@@ -154,6 +162,8 @@ pub fn mtime(m: &fs::Metadata) -> Result<String> {
         .to_string())
 }
 fn metadata(path: &Path) -> String {
+    let is_video =
+        crate::formats::kind(&crate::formats::extension(&path.to_string_lossy())) == Some("video");
     let result = (|| {
         let file = fs::File::open(path).ok()?;
         let exif = exif::Reader::new()
@@ -182,6 +192,13 @@ fn metadata(path: &Path) -> String {
     let mut values: serde_json::Value =
         serde_json::from_str(&result.unwrap_or_else(|| "{}".into()))
             .unwrap_or_else(|_| serde_json::json!({}));
+    if is_video {
+        if let Some(object) = values.as_object_mut() {
+            if let Some(v) = crate::video::metadata(path).as_object() {
+                object.extend(v.clone());
+            }
+        }
+    }
     if let Ok(info) = fs::metadata(path) {
         if let Ok(time) = info.created() {
             values["FileCreated"] = chrono::DateTime::<chrono::Utc>::from(time)
@@ -192,14 +209,14 @@ fn metadata(path: &Path) -> String {
     if path
         .extension()
         .and_then(|s| s.to_str())
-        .is_some_and(|s| !s.eq_ignore_ascii_case("cr2"))
+        .is_some_and(|s| !is_video && crate::formats::kind(&s.to_ascii_lowercase()) != Some("raw"))
     {
         if let Ok((width, height)) = image::image_dimensions(path) {
             values["ImageWidth"] = width.into();
             values["ImageLength"] = height.into();
         }
     }
-    values["SargeMetadataVersion"] = 3.into();
+    values["SargeMetadataVersion"] = 4.into();
     values.to_string()
 }
 pub fn scan(
@@ -217,6 +234,7 @@ pub fn scan(
         [&source.id],
     )
     .map_err(|e| e.to_string())?;
+    let media_policy = crate::formats::settings(c)?;
     let mapping_rules = crate::mappings::rules(c)?;
     let root = base.file_name().unwrap_or_default().to_string_lossy();
     let mut count = 0;
@@ -241,10 +259,11 @@ pub fn scan(
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
-        let kind = match ext.as_str() {
-            "cr2" => "raw",
-            "jpg" | "jpeg" | "png" => "edited",
-            _ => continue,
+        if !media_policy.enabled.contains(&ext) {
+            continue;
+        }
+        let Some(kind) = crate::formats::kind(&ext) else {
+            continue;
         };
         let info = match fs::metadata(p) {
             Ok(i) => i,
@@ -279,7 +298,7 @@ pub fn scan(
             .filter(|v| {
                 serde_json::from_str::<serde_json::Value>(v)
                     .ok()
-                    .is_some_and(|v| v["SargeMetadataVersion"] == 3)
+                    .is_some_and(|v| v["SargeMetadataVersion"] == 4)
             })
             .unwrap_or_else(|| metadata(p));
         c.execute("INSERT INTO files(source_id,path,name,stem,kind,size,mtime,date,session,camera_prefix,image_number,metadata,present,seen) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?) ON CONFLICT(source_id,path) DO UPDATE SET size=excluded.size,mtime=excluded.mtime,date=excluded.date,session=excluded.session,camera_prefix=excluded.camera_prefix,image_number=excluded.image_number,metadata=excluded.metadata,present=1,seen=excluded.seen",params![source.id,rel,name,stem,kind,info.len() as i64,modified,date,session,camera,number,meta,job]).map_err(|e|e.to_string())?;
@@ -306,11 +325,28 @@ pub fn scan(
         return Err("Cancelled; unseen records were retained.".into());
     }
     if errors.is_empty() {
-        c.execute(
-            "UPDATE files SET present=0 WHERE source_id=? AND seen!=?",
-            params![source.id, job],
-        )
-        .map_err(|e| e.to_string())?;
+        let known = {
+            let mut q = c
+                .prepare("SELECT id,path FROM files WHERE source_id=? AND seen!=?")
+                .map_err(|e| e.to_string())?;
+            let rows = q
+                .query_map(params![source.id, job], |r| {
+                    Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+                })
+                .map_err(|e| e.to_string())?
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            rows
+        };
+        for (id, path) in known {
+            if media_policy
+                .enabled
+                .contains(&crate::formats::extension(&path))
+            {
+                c.execute("UPDATE files SET present=0 WHERE id=?", [id])
+                    .map_err(|e| e.to_string())?;
+            }
+        }
         c.execute(
             "UPDATE sources SET last_complete=? WHERE id=?",
             params![model::stamp(), source.id],
@@ -508,6 +544,7 @@ pub fn copy(
         &std::collections::HashSet::from([source.id.clone()]),
     )
 }
+#[cfg(test)]
 pub fn copy_from_sources(
     c: &Connection,
     source: &Source,
@@ -517,6 +554,29 @@ pub fn copy_from_sources(
     cancel: &AtomicBool,
     allowed_sources: &std::collections::HashSet<String>,
 ) -> Result<Vec<String>> {
+    copy_media_from_sources(
+        c,
+        source,
+        job,
+        matched,
+        unmatched,
+        cancel,
+        allowed_sources,
+        false,
+        false,
+    )
+}
+pub fn copy_media_from_sources(
+    c: &Connection,
+    source: &Source,
+    job: &str,
+    matched: &str,
+    unmatched: &str,
+    cancel: &AtomicBool,
+    allowed_sources: &std::collections::HashSet<String>,
+    include_videos: bool,
+    videos_only: bool,
+) -> Result<Vec<String>> {
     if source.last_complete.is_none() {
         return Err("Copy only requires a completed scan first.".into());
     }
@@ -525,18 +585,33 @@ pub fn copy_from_sources(
     }
     let (base, m, u) = destinations(&source.path, matched, unmatched)?;
     let files = model::photos(c)?;
+    let policy = crate::formats::settings(c)?;
     let by_id: HashMap<_, _> = files.iter().map(|f| (f.id, f)).collect();
     let mut errors = Vec::new();
     let mut copied = 0;
     let mut identical = 0;
     let mut skipped = 0;
     let mut omitted = 0;
-    for file in files
-        .iter()
-        .filter(|f| f.source_id == source.id && f.present)
-    {
+    for file in files.iter().filter(|f| {
+        f.source_id == source.id
+            && f.present
+            && if videos_only {
+                f.kind == "video"
+            } else {
+                f.kind != "video" || include_videos
+            }
+    }) {
         if cancel.load(Ordering::Relaxed) {
             return Err("Cancelled; completed copies remain in place.".into());
+        }
+        if file.kind != "video" && !policy.matchable(&file.name) {
+            omitted += 1;
+            c.execute(
+                "UPDATE jobs SET omitted=? WHERE id=?",
+                params![omitted, job],
+            )
+            .map_err(|e| e.to_string())?;
+            continue;
         }
         let mut q=c.prepare("SELECT raw_id,edited_id,status FROM matches WHERE (raw_id=? OR edited_id=?) AND status!='rejected'").map_err(|e|e.to_string())?;
         let links = q
@@ -550,6 +625,15 @@ pub fn copy_from_sources(
             .map_err(|e| e.to_string())?
             .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
+        let links: Vec<_> = links
+            .into_iter()
+            .filter(|(r, e, _)| {
+                by_id
+                    .get(r)
+                    .zip(by_id.get(e))
+                    .is_some_and(|(r, e)| policy.pair(&r.name, &e.name))
+            })
+            .collect();
         let unsafe_link = links.iter().any(|(r, e, status)| {
             status != "confirmed"
                 || [r, e].iter().any(|id| {

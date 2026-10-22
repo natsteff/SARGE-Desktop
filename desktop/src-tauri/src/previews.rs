@@ -23,7 +23,7 @@ pub fn enabled(c: &Connection) -> bool {
 pub fn original(source: &Source, file: &Photo) -> Result<PathBuf> {
     if !file.present || !volumes::available(&source.path, &source.volume_id) {
         return Err(
-            "The original photo is offline or missing. Reconnect the correct drive first.".into(),
+            "The media file is offline or missing. Reconnect the correct drive first.".into(),
         );
     }
     let rel = Path::new(&file.path);
@@ -40,8 +40,8 @@ pub fn original(source: &Source, file: &Photo) -> Result<PathBuf> {
         .unwrap_or_default()
         .to_string_lossy()
         .to_lowercase();
-    if !["cr2", "jpg", "jpeg", "png"].contains(&ext.as_str()) {
-        return Err("Unsupported photo type".into());
+    if crate::formats::kind(&ext).is_none() {
+        return Err("Unsupported media type".into());
     }
     Ok(actual)
 }
@@ -61,11 +61,7 @@ fn decode<R: std::io::BufRead + std::io::Seek>(reader: R) -> Option<DynamicImage
     Some(image)
 }
 pub fn image(path: &Path) -> Option<DynamicImage> {
-    if path
-        .extension()?
-        .to_string_lossy()
-        .eq_ignore_ascii_case("cr2")
-    {
+    if crate::formats::kind(&crate::formats::extension(&path.to_string_lossy())) == Some("raw") {
         // Extract an embedded camera JPEG, never demosaic or alter RAW data.
         let mut bytes = Vec::new();
         fs::File::open(path)
@@ -107,6 +103,7 @@ pub fn generate(
     if !enabled(c) {
         return Ok((0, 0));
     }
+    let policy = crate::formats::settings(c)?;
     let files = model::photos(c)?;
     let sources = model::sources(c)?;
     let file_index: std::collections::HashMap<_, _> = files.iter().map(|f| (f.id, f)).collect();
@@ -116,7 +113,7 @@ pub fn generate(
     let mut unavailable = 0;
     for file in files
         .iter()
-        .filter(|f| f.source_id == source.id && f.present)
+        .filter(|f| f.source_id == source.id && f.present && f.kind != "video")
     {
         if cancel.load(Ordering::Relaxed) {
             return Err("Preview generation cancelled; existing previews were retained.".into());
@@ -139,7 +136,10 @@ pub fn generate(
                 .collect::<std::result::Result<Vec<_>, _>>()
                 .map_err(|e| e.to_string())?;
             for id in ids {
-                if let Some(edit) = file_index.get(&id).filter(|e| e.present) {
+                if let Some(edit) = file_index
+                    .get(&id)
+                    .filter(|e| e.present && policy.pair(&file.name, &e.name))
+                {
                     if let Some(s) = source_index
                         .get(edit.source_id.as_str())
                         .filter(|s| !s.archived)
@@ -224,5 +224,27 @@ pub fn fetch(c: &Connection, ids: &[i64]) -> Result<serde_json::Value> {
 
 pub fn invalidate_related(c: &Connection) -> Result<()> {
     c.execute("DELETE FROM previews WHERE origin LIKE 'Matched export:%' AND NOT EXISTS(SELECT 1 FROM matches m JOIN files e ON e.id=m.edited_id JOIN sources s ON s.id=e.source_id WHERE m.raw_id=previews.file_id AND m.status='confirmed' AND e.present AND NOT s.archived AND previews.stamp=CAST(e.id AS TEXT)||':'||CAST(e.size AS TEXT)||':'||e.mtime)",[]).map_err(|e|e.to_string())?;
+    let files = model::photos(c)?;
+    let policy = crate::formats::settings(c)?;
+    let names: std::collections::HashMap<_, _> = files.iter().map(|f| (f.id, &f.name)).collect();
+    for raw in files.iter().filter(|f| f.kind == "raw") {
+        let stamp: Option<String> = c
+            .query_row(
+                "SELECT stamp FROM previews WHERE file_id=? AND origin LIKE 'Matched export:%'",
+                [raw.id],
+                |r| r.get(0),
+            )
+            .ok();
+        if let Some(stamp) = stamp {
+            let donor = stamp.split(':').next().and_then(|s| s.parse::<i64>().ok());
+            if !donor
+                .and_then(|id| names.get(&id))
+                .is_some_and(|name| policy.pair(&raw.name, name))
+            {
+                c.execute("DELETE FROM previews WHERE file_id=?", [raw.id])
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+    }
     Ok(())
 }

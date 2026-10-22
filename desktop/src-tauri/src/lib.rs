@@ -1,11 +1,13 @@
 mod backup;
 mod engine;
+mod formats;
 mod jobs;
 mod mappings;
 mod model;
 mod previews;
 #[cfg(test)]
 mod tests;
+mod video;
 mod volumes;
 use model::{Result, Source};
 use rusqlite::params;
@@ -74,7 +76,7 @@ fn get_state(rt: tauri::State<Runtime>) -> Result<Value> {
     let mut q=c.prepare("SELECT id,source_id,name,mode,status,started,finished,count,copied,identical,skipped,errors,omitted,previews,unavailable,batch_id,batch_bulk FROM jobs WHERE coalesce(nullif(batch_id,''),id) IN (SELECT coalesce(nullif(batch_id,''),id) FROM jobs GROUP BY coalesce(nullif(batch_id,''),id) ORDER BY max(rowid) DESC LIMIT 100) ORDER BY started DESC,rowid DESC").map_err(|e|e.to_string())?;
     let rows=q.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"source_id":r.get::<_,String>(1)?,"name":r.get::<_,String>(2)?,"mode":r.get::<_,String>(3)?,"status":r.get::<_,String>(4)?,"started":r.get::<_,String>(5)?,"finished":r.get::<_,Option<String>>(6)?,"count":r.get::<_,i64>(7)?,"copied":r.get::<_,i64>(8)?,"identical":r.get::<_,i64>(9)?,"skipped":r.get::<_,i64>(10)?,"errors":r.get::<_,String>(11)?,"omitted":r.get::<_,i64>(12)?,"previews":r.get::<_,i64>(13)?,"unavailable":r.get::<_,i64>(14)?,"batch_id":r.get::<_,String>(15)?,"batch_bulk":r.get::<_,bool>(16)?}))).map_err(|e|e.to_string())?.collect::<std::result::Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
     Ok(
-        json!({"filename_rules":mappings::rules(&c)?,"inventory_columns":c.query_row("SELECT value FROM settings WHERE key='inventory_columns'",[],|r|r.get::<_,String>(0)).ok(),"sources":sources,"files":files,"jobs":rows,"busy":rt.busy.load(Ordering::SeqCst),"catalog_path":rt.db.to_string_lossy(),"previews_enabled":previews::enabled(&c),"preview_bytes":c.query_row("SELECT coalesce(sum(length(data)),0) FROM previews",[],|r|r.get::<_,i64>(0)).unwrap_or(0)}),
+        json!({"format_settings":formats::settings(&c)?,"supported_formats":{"raw":formats::RAW,"images":formats::IMAGES,"videos":formats::VIDEOS},"filename_rules":mappings::rules(&c)?,"inventory_columns":c.query_row("SELECT value FROM settings WHERE key='inventory_columns'",[],|r|r.get::<_,String>(0)).ok(),"sources":sources,"files":files,"jobs":rows,"busy":rt.busy.load(Ordering::SeqCst),"catalog_path":rt.db.to_string_lossy(),"previews_enabled":previews::enabled(&c),"preview_bytes":c.query_row("SELECT coalesce(sum(length(data)),0) FROM previews",[],|r|r.get::<_,i64>(0)).unwrap_or(0)}),
     )
 }
 #[tauri::command]
@@ -179,10 +181,24 @@ struct JobRequest {
     bulk: bool,
     #[serde(default)]
     confirmed_single_category: bool,
+    #[serde(default)]
+    include_videos: bool,
+    #[serde(default)]
+    confirmed_video_copy: bool,
 }
 fn validate_request(request: &JobRequest) -> Result<()> {
-    if !["scan", "scan-copy", "copy", "previews"].contains(&request.mode.as_str()) {
+    if !["scan", "scan-copy", "copy", "copy-videos", "previews"].contains(&request.mode.as_str()) {
         return Err("Invalid operation".into());
+    }
+    if request.include_videos && request.unmatched.is_empty() {
+        return Err("Including videos requires an unmatched destination.".into());
+    }
+    if request.mode == "copy-videos"
+        && (request.unmatched.is_empty()
+            || !request.matched.is_empty()
+            || !request.confirmed_video_copy)
+    {
+        return Err("Choose a video destination and confirm Copy all videos.".into());
     }
     if ["copy", "scan-copy"].contains(&request.mode.as_str()) {
         if request.matched.is_empty() && request.unmatched.is_empty() {
@@ -222,13 +238,15 @@ fn start_jobs(rt: tauri::State<Runtime>, request: JobRequest) -> Result<Value> {
             if !volumes::available(&source.path, &source.volume_id) {
                 return Err(format!("{} is offline or has a different volume identity. Reassociate it before scanning.",source.name));
             }
-            if request.mode == "copy" && source.last_complete.is_none() {
+            if ["copy", "copy-videos"].contains(&request.mode.as_str())
+                && source.last_complete.is_none()
+            {
                 return Err(format!(
                     "{} needs a completed scan before Copy only.",
                     source.name
                 ));
             }
-            if ["copy", "scan-copy"].contains(&request.mode.as_str()) {
+            if ["copy", "scan-copy", "copy-videos"].contains(&request.mode.as_str()) {
                 engine::destinations(&source.path, &request.matched, &request.unmatched)?;
             }
             selected.push(source.clone());
@@ -236,7 +254,7 @@ fn start_jobs(rt: tauri::State<Runtime>, request: JobRequest) -> Result<Value> {
         if selected.is_empty() {
             return Err("Select at least one available registered source.".into());
         }
-        if ["copy", "scan-copy"].contains(&request.mode.as_str())
+        if ["copy", "scan-copy", "copy-videos"].contains(&request.mode.as_str())
             && selected.len() > 1
             && !request.bulk
         {
@@ -322,6 +340,18 @@ fn set_match(rt: tauri::State<Runtime>, raw_id: i64, edited_id: i64, status: Str
     if !valid {
         return Err("Choose a present RAW and export in active sources.".into());
     }
+    if status == "confirmed" {
+        let names: (String, String) = c
+            .query_row(
+                "SELECT r.name,e.name FROM files r,files e WHERE r.id=? AND e.id=?",
+                params![raw_id, edited_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .map_err(|e| e.to_string())?;
+        if !formats::settings(&c)?.pair(&names.0, &names.1) {
+            return Err("Enable this RAW-to-image pair in Formats & matching first.".into());
+        }
+    }
     c.execute("INSERT INTO matches VALUES(?,?,?,'manual') ON CONFLICT(raw_id,edited_id) DO UPDATE SET status=excluded.status,method='manual'",params![raw_id,edited_id,status]).map_err(|e|e.to_string())?;
     previews::invalidate_related(&c)?;
     Ok(())
@@ -341,7 +371,7 @@ async fn export_csv(app: tauri::AppHandle, rt: tauri::State<'_, Runtime>) -> Res
         let path = target.into_path().map_err(|e| e.to_string())?;
         let c = model::connection(&db)?;
         let mut output =
-            "Source,Relative path,Type,Bytes,Folder date,Camera prefix,Matched,Present\r\n"
+            "Source,Relative path,Type,Bytes,Folder date,Camera prefix,Matched,Present,Match status,Duration seconds,Width,Height\r\n"
                 .to_string();
         fn cell(s: &str) -> String {
             let s = if s.starts_with(['=', '+', '-', '@']) {
@@ -352,8 +382,10 @@ async fn export_csv(app: tauri::AppHandle, rt: tauri::State<'_, Runtime>) -> Res
             format!("\"{}\"", s.replace('"', "\"\""))
         }
         for f in model::photos(&c)? {
+            let meta:Value=serde_json::from_str(&f.metadata).unwrap_or_else(|_|json!({}));
+            let status=if f.kind=="video"{"Not applicable"}else if !f.matchable{"Not configured"}else if f.matched{"Matched"}else if f.suggested{"Review"}else{"Unmatched"};
             output.push_str(&format!(
-                "{},{},{},{},{},{},{},{}\r\n",
+                "{},{},{},{},{},{},{},{},{},{},{},{}\r\n",
                 cell(&f.source_name),
                 cell(&f.path),
                 cell(&f.kind),
@@ -361,7 +393,7 @@ async fn export_csv(app: tauri::AppHandle, rt: tauri::State<'_, Runtime>) -> Res
                 cell(&f.date),
                 cell(&f.camera_prefix),
                 f.matched,
-                f.present
+                f.present,cell(status),cell(&meta["DurationSeconds"].as_f64().map(|n|n.to_string()).unwrap_or_default()),cell(&meta["ImageWidth"].as_u64().map(|n|n.to_string()).unwrap_or_default()),cell(&meta["ImageLength"].as_u64().map(|n|n.to_string()).unwrap_or_default())
             ));
         }
         std::fs::write(path, output).map_err(|e| e.to_string())?;
@@ -400,16 +432,36 @@ fn open_photo(rt: tauri::State<Runtime>, id: i64) -> Result<()> {
     let file = files
         .iter()
         .find(|f| f.id == id)
-        .ok_or("Photo not found in the active catalog")?;
+        .ok_or("Media file not found in the active catalog")?;
     let sources = model::sources(&c)?;
     let source = sources
         .iter()
         .find(|s| s.id == file.source_id && !s.archived)
         .ok_or("Source not found")?;
     let path = previews::original(source, file)?;
-    open::that(path).map_err(|e| {
-        format!("Could not open the original photo in its associated application: {e}")
-    })
+    open::that(path)
+        .map_err(|e| format!("Could not open the media file in its associated application: {e}"))
+}
+#[tauri::command]
+fn save_media_formats(rt: tauri::State<Runtime>, settings: formats::Settings) -> Result<()> {
+    settings.validate()?;
+    if rt
+        .busy
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err("Wait for current jobs to finish.".into());
+    }
+    let result = (|| {
+        let mut c = model::connection(&rt.db)?;
+        let tx = c.transaction().map_err(|e| e.to_string())?;
+        tx.execute("INSERT INTO settings(key,value) VALUES('media_formats',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[serde_json::to_string(&settings).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
+        engine::rebuild_on(&tx)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(())
+    })();
+    rt.busy.store(false, Ordering::SeqCst);
+    result
 }
 #[tauri::command]
 fn test_filename_rules(rules: Vec<mappings::Rule>, names: Vec<String>) -> Result<Value> {
@@ -594,6 +646,7 @@ pub fn run() {
             backup_catalog,
             save_inventory_columns,
             save_filename_rules,
+            save_media_formats,
             test_filename_rules,
             pick_example_file
         ])

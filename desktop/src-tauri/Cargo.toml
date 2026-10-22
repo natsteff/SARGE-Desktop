@@ -1,6 +1,6 @@
 [package]
 name = "sarge-desktop"
-version = "0.3.0-beta.2"
+version = "0.3.0-beta.3"
 description = "SARGE native photo inventory"
 authors = ["natsteff"]
 license = "AGPL-3.0-only"
@@ -29,6 +29,6 @@ sha2 = "0.10"
 tempfile = "3"
 kamadak-exif = "0.6"
 
-image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp"] }
 base64 = "0.22"
 open = "5"

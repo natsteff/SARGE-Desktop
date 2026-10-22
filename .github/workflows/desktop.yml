@@ -33,6 +33,8 @@ jobs:
         working-directory: desktop
       - run: node --check ui/mapping-settings.js
         working-directory: desktop
+      - run: node --check ui/media.js
+        working-directory: desktop
       - run: pnpm test
         working-directory: desktop
       - run: cargo test --locked --lib

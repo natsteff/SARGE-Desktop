@@ -63,7 +63,7 @@ pub fn validate(rules: &[Rule]) -> Result<()> {
             || r.extensions.is_empty()
             || r.extensions
                 .iter()
-                .any(|e| !["cr2", "jpg", "jpeg", "png"].contains(&e.as_str()))
+                .any(|e| !matches!(crate::formats::kind(e), Some("raw" | "edited")))
         {
             return Err("Invalid filename mapping rule.".into());
         }

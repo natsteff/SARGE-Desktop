@@ -282,6 +282,8 @@ fn single_category_requires_confirmation_and_omits_only_unselected_files() {
         unmatched: String::new(),
         bulk: false,
         confirmed_single_category: false,
+        include_videos: false,
+        confirmed_video_copy: false,
     };
     assert!(super::validate_request(&request).is_err());
     request.confirmed_single_category = true;
@@ -334,6 +336,8 @@ fn bulk_scan_copy_separates_identical_names_and_copy_only_reuses_namespaces() {
         unmatched: destination.to_string_lossy().into(),
         bulk: true,
         confirmed_single_category: true,
+        include_videos: false,
+        confirmed_video_copy: false,
     };
     let make_jobs = |round: &str| -> Vec<(String, model::Source)> {
         model::sources(&c).unwrap().into_iter().map(|s|{let id=format!("{round}-{}",s.id);c.execute("INSERT INTO jobs(id,source_id,name,mode,status,started) VALUES(?,?,?,'scan-copy','queued',?)",params![id,s.id,s.name,model::stamp()]).unwrap();(id,s)}).collect()
@@ -532,6 +536,8 @@ fn bulk_copy_includes_confirmed_relationships_between_selected_sources() {
         unmatched: String::new(),
         bulk: true,
         confirmed_single_category: true,
+        include_videos: false,
+        confirmed_video_copy: false,
     };
     super::jobs::run(&db, &request, jobs, &cancel);
     for s in sources {
@@ -726,4 +732,341 @@ fn bulk_queue_uses_batch_identity_instead_of_matching_timestamps() {
             .unwrap(),
         ""
     );
+}
+
+fn movie_fixture(width: u32, height: u32, seconds: u32) -> Vec<u8> {
+    fn atom(kind: &[u8; 4], data: Vec<u8>) -> Vec<u8> {
+        let mut b = ((data.len() + 8) as u32).to_be_bytes().to_vec();
+        b.extend(kind);
+        b.extend(data);
+        b
+    }
+    let mut mvhd = vec![0; 20];
+    mvhd[12..16].copy_from_slice(&1000u32.to_be_bytes());
+    mvhd[16..20].copy_from_slice(&(seconds * 1000).to_be_bytes());
+    let mut tkhd = vec![0; 84];
+    tkhd[76..80].copy_from_slice(&(width << 16).to_be_bytes());
+    tkhd[80..84].copy_from_slice(&(height << 16).to_be_bytes());
+    atom(
+        b"moov",
+        [atom(b"mvhd", mvhd), atom(b"trak", atom(b"tkhd", tkhd))].concat(),
+    )
+}
+#[test]
+fn video_only_scan_persists_metadata_skips_matching_and_uses_safe_video_copy() {
+    let (dir, db, mut source) = setup();
+    let root = std::path::PathBuf::from(&source.path);
+    fs::create_dir_all(root.join("deep/subfolder")).unwrap();
+    fs::write(
+        root.join("deep/subfolder/clip.MP4"),
+        movie_fixture(1920, 1080, 125),
+    )
+    .unwrap();
+    fs::write(root.join("unsupported.mxf"), b"not a decodable container").unwrap();
+    let mut c = model::connection(&db).unwrap();
+    let cancel = AtomicBool::new(false);
+    engine::scan(&mut c, &source, "job", &cancel).unwrap();
+    let files = model::photos(&c).unwrap();
+    assert_eq!(files.len(), 2);
+    assert!(files
+        .iter()
+        .all(|f| f.kind == "video" && !f.matchable && !f.matched && !f.suggested));
+    let meta: serde_json::Value = serde_json::from_str(
+        &files
+            .iter()
+            .find(|f| f.name.ends_with("MP4"))
+            .unwrap()
+            .metadata,
+    )
+    .unwrap();
+    assert_eq!(meta["DurationSeconds"], 125.0);
+    assert_eq!(meta["ImageWidth"], 1920);
+    assert_eq!(meta["ImageLength"], 1080);
+    c.execute("INSERT INTO settings VALUES('previews','true')", [])
+        .unwrap();
+    assert_eq!(
+        crate::previews::generate(&c, &source, "job", &cancel).unwrap(),
+        (0, 0)
+    );
+    source = model::sources(&c).unwrap().remove(0);
+    let dest = dir.path().join("videos");
+    fs::create_dir(&dest).unwrap();
+    let dest = dest.to_str().unwrap();
+    engine::copy_from_sources(
+        &c,
+        &source,
+        "job",
+        "",
+        dest,
+        &cancel,
+        &[source.id.clone()].into_iter().collect(),
+    )
+    .unwrap();
+    assert!(!Path::new(dest).join("deep/subfolder/clip.MP4").exists());
+    engine::copy_media_from_sources(
+        &c,
+        &source,
+        "job",
+        "",
+        dest,
+        &cancel,
+        &[source.id.clone()].into_iter().collect(),
+        false,
+        true,
+    )
+    .unwrap();
+    assert!(Path::new(dest).join("deep/subfolder/clip.MP4").exists());
+    fs::write(
+        Path::new(dest).join("unsupported.mxf"),
+        b"different existing file",
+    )
+    .unwrap();
+    let errors = engine::copy_media_from_sources(
+        &c,
+        &source,
+        "job",
+        "",
+        dest,
+        &cancel,
+        &[source.id.clone()].into_iter().collect(),
+        false,
+        true,
+    )
+    .unwrap();
+    assert!(!errors.is_empty());
+    assert_eq!(
+        fs::read(Path::new(dest).join("unsupported.mxf")).unwrap(),
+        b"different existing file"
+    );
+    fs::remove_dir_all(root).unwrap();
+    let saved = model::photos(&c).unwrap();
+    assert_eq!(saved.len(), 2);
+    assert!(saved.iter().any(|f| f.metadata.contains("125")));
+}
+#[test]
+fn broad_formats_default_png_matching_and_configurable_raw_pairs() {
+    let (_dir, db, source) = setup();
+    let root = Path::new(&source.path);
+    for name in [
+        "CAM_1.cr2",
+        "CAM_1.png",
+        "CAM_2.nef",
+        "CAM_2.jpg",
+        "CAM_3.bmp",
+        "clip.mp4",
+    ] {
+        fs::write(root.join(name), b"fixture").unwrap();
+    }
+    let mut c = model::connection(&db).unwrap();
+    engine::scan(&mut c, &source, "job", &AtomicBool::new(false)).unwrap();
+    let files = model::photos(&c).unwrap();
+    assert_eq!(files.len(), 6);
+    assert!(
+        files
+            .iter()
+            .find(|f| f.name == "CAM_1.png")
+            .unwrap()
+            .matched
+    );
+    assert!(
+        !files
+            .iter()
+            .find(|f| f.name == "CAM_2.nef")
+            .unwrap()
+            .matchable
+    );
+    assert!(
+        !files
+            .iter()
+            .find(|f| f.name == "CAM_3.bmp")
+            .unwrap()
+            .matchable
+    );
+    let mut policy = crate::formats::Settings::default();
+    policy.rules.push(crate::formats::MatchRule {
+        raw: "nef".into(),
+        targets: vec!["jpg".into()],
+    });
+    c.execute(
+        "INSERT INTO settings VALUES('media_formats',?)",
+        [serde_json::to_string(&policy).unwrap()],
+    )
+    .unwrap();
+    engine::rebuild(&mut c).unwrap();
+    assert!(
+        model::photos(&c)
+            .unwrap()
+            .iter()
+            .find(|f| f.name == "CAM_2.nef")
+            .unwrap()
+            .matched
+    );
+    // Keep a manual decision dormant while a pair is disabled, then restore it.
+    let files = model::photos(&c).unwrap();
+    let raw = files.iter().find(|f| f.name == "CAM_2.nef").unwrap().id;
+    let edit = files.iter().find(|f| f.name == "CAM_2.jpg").unwrap().id;
+    c.execute(
+        "UPDATE matches SET method='manual' WHERE raw_id=? AND edited_id=?",
+        params![raw, edit],
+    )
+    .unwrap();
+    policy.rules.clear();
+    c.execute(
+        "UPDATE settings SET value=? WHERE key='media_formats'",
+        [serde_json::to_string(&policy).unwrap()],
+    )
+    .unwrap();
+    engine::rebuild(&mut c).unwrap();
+    assert!(model::photos(&c)
+        .unwrap()
+        .iter()
+        .all(|f| !f.matchable && !f.matched));
+    assert_eq!(
+        c.query_row(
+            "SELECT count(*) FROM matches WHERE method='manual'",
+            [],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        1
+    );
+    policy.enabled.retain(|e| e != "bmp");
+    c.execute(
+        "UPDATE settings SET value=? WHERE key='media_formats'",
+        [serde_json::to_string(&policy).unwrap()],
+    )
+    .unwrap();
+    engine::scan(&mut c, &source, "job", &AtomicBool::new(false)).unwrap();
+    assert!(
+        model::photos(&c)
+            .unwrap()
+            .iter()
+            .find(|f| f.name == "CAM_3.bmp")
+            .unwrap()
+            .present
+    );
+    assert!(crate::formats::RAW
+        .iter()
+        .all(|e| crate::formats::kind(e) == Some("raw")));
+    assert!(crate::formats::VIDEOS
+        .iter()
+        .all(|e| crate::formats::kind(e) == Some("video")));
+    let bad = crate::formats::Settings {
+        enabled: vec![],
+        rules: vec![crate::formats::MatchRule {
+            raw: "cr2".into(),
+            targets: vec!["mp4".into()],
+        }],
+    };
+    assert!(bad.validate().is_err());
+}
+#[test]
+fn video_copy_requires_confirmation_and_unmatched_destination() {
+    let mut req:super::JobRequest=serde_json::from_value(serde_json::json!({"source_ids":["s"],"mode":"copy","matched":"x","include_videos":true,"confirmed_single_category":true})).unwrap();
+    assert!(super::validate_request(&req).is_err());
+    req.unmatched = "y".into();
+    assert!(super::validate_request(&req).is_ok());
+    req.mode = "copy-videos".into();
+    assert!(super::validate_request(&req).is_err());
+    req.matched.clear();
+    req.confirmed_video_copy = true;
+    assert!(super::validate_request(&req).is_ok());
+}
+#[test]
+fn native_video_metadata_handles_avi_webm_and_malformed_headers() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("movie.avi");
+    let mut bytes = b"RIFF\0\0\0\0AVI avih".to_vec();
+    bytes.extend(56u32.to_le_bytes());
+    let mut avih = vec![0; 56];
+    avih[0..4].copy_from_slice(&40000u32.to_le_bytes());
+    avih[16..20].copy_from_slice(&250u32.to_le_bytes());
+    avih[32..36].copy_from_slice(&1280u32.to_le_bytes());
+    avih[36..40].copy_from_slice(&720u32.to_le_bytes());
+    bytes.extend(avih);
+    fs::write(&path, bytes).unwrap();
+    let m = crate::video::metadata(&path);
+    assert_eq!(m["DurationSeconds"], 10.0);
+    assert_eq!(m["ImageWidth"], 1280);
+    fn element(id: &[u8], value: Vec<u8>) -> Vec<u8> {
+        assert!(value.len() < 127);
+        [id.to_vec(), vec![0x80 | value.len() as u8], value].concat()
+    }
+    let info = element(
+        &[0x15, 0x49, 0xa9, 0x66],
+        element(&[0x44, 0x89], 10000.0f64.to_be_bytes().to_vec()),
+    );
+    let video = element(
+        &[0xe0],
+        [
+            element(&[0xb0], 1920u16.to_be_bytes().to_vec()),
+            element(&[0xba], 1080u16.to_be_bytes().to_vec()),
+        ]
+        .concat(),
+    );
+    let tracks = element(&[0x16, 0x54, 0xae, 0x6b], element(&[0xae], video));
+    let segment = element(&[0x18, 0x53, 0x80, 0x67], [info, tracks].concat());
+    let path = dir.path().join("movie.webm");
+    fs::write(&path, segment).unwrap();
+    let m = crate::video::metadata(&path);
+    assert_eq!(m["DurationSeconds"], 10.0);
+    assert_eq!(m["ImageLength"], 1080);
+    for ext in ["mp4", "mkv", "webm", "avi"] {
+        let p = dir.path().join(format!("bad.{ext}"));
+        for data in [vec![], vec![0; 32], vec![255; 128], vec![1, 2, 3]] {
+            fs::write(&p, data).unwrap();
+            let m = crate::video::metadata(&p);
+            assert!(m["DurationSeconds"].is_null());
+        }
+    }
+}
+#[test]
+fn video_copy_job_runs_without_any_photo_match_or_matched_destination() {
+    let (dir, db, source) = setup();
+    fs::write(
+        Path::new(&source.path).join("clip.mov"),
+        movie_fixture(640, 480, 8),
+    )
+    .unwrap();
+    let mut c = model::connection(&db).unwrap();
+    engine::scan(&mut c, &source, "job", &AtomicBool::new(false)).unwrap();
+    let source = model::sources(&c).unwrap().remove(0);
+    let dest = dir.path().join("video-copies");
+    fs::create_dir(&dest).unwrap();
+    let request:super::JobRequest=serde_json::from_value(serde_json::json!({"source_ids":[source.id],"mode":"copy-videos","unmatched":dest,"bulk":true,"confirmed_video_copy":true})).unwrap();
+    super::validate_request(&request).unwrap();
+    let queued = model::enqueue(&mut c, vec![source.clone()], "copy-videos", true).unwrap();
+    let id = queued[0].0.clone();
+    super::jobs::run(&db, &request, queued, &AtomicBool::new(false));
+    let result: (String, i64, String) = c
+        .query_row(
+            "SELECT status,copied,errors FROM jobs WHERE id=?",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(result, ("complete".into(), 1, "[]".into()));
+    let folder = engine::source_destination(dest.to_str().unwrap(), &source).unwrap();
+    assert!(Path::new(&folder).join("clip.mov").exists());
+}
+#[test]
+fn movie_metadata_seeks_past_large_media_payload_and_rotates_portrait_dimensions() {
+    use std::io::{Seek, SeekFrom, Write};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("large.mov");
+    let mut movie = movie_fixture(1920, 1080, 10);
+    let pos = movie.windows(4).position(|w| w == b"tkhd").unwrap() + 4;
+    movie[pos + 40..pos + 44].copy_from_slice(&0i32.to_be_bytes());
+    movie[pos + 44..pos + 48].copy_from_slice(&65536i32.to_be_bytes());
+    let mut f = fs::File::create(&path).unwrap();
+    let length = 32 * 1024 * 1024u32;
+    f.write_all(&length.to_be_bytes()).unwrap();
+    f.write_all(b"mdat").unwrap();
+    f.seek(SeekFrom::Start(length as u64)).unwrap();
+    f.write_all(&movie).unwrap();
+    drop(f);
+    let m = crate::video::metadata(&path);
+    assert_eq!(m["ImageWidth"], 1080);
+    assert_eq!(m["ImageLength"], 1920);
+    assert_eq!(m["DurationSeconds"], 10.0);
 }
