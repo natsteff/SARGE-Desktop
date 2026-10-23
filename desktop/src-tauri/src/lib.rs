@@ -520,6 +520,20 @@ fn save_inventory_columns(rt: tauri::State<Runtime>, columns: Vec<String>) -> Re
     Ok(())
 }
 #[tauri::command]
+fn open_source(rt: tauri::State<Runtime>, id: String) -> Result<()> {
+    let c = model::connection(&rt.db)?;
+    let sources = model::sources(&c)?;
+    let source = sources
+        .iter()
+        .find(|s| s.id == id && !s.archived)
+        .ok_or("Source not found")?;
+    if !volumes::available(&source.path, &source.volume_id) {
+        return Err("Source is offline or its volume identity has changed".into());
+    }
+    open::that(&source.path).map_err(|e| e.to_string())?;
+    Ok(())
+}
+#[tauri::command]
 fn reveal_photo(rt: tauri::State<Runtime>, id: i64) -> Result<()> {
     let c = model::connection(&rt.db)?;
     let files = model::photos(&c)?;
@@ -643,6 +657,7 @@ pub fn run() {
             get_previews,
             open_photo,
             reveal_photo,
+            open_source,
             backup_catalog,
             save_inventory_columns,
             save_filename_rules,

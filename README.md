@@ -11,6 +11,17 @@ SARGE’s main purpose is to **inventory photo images across multiple drives**, 
 
 Windows 10/11 x64 is the primary target. No Docker, Python, helper, or ExifTool installation is required. macOS is a bonus development target. This beta installer is unsigned and needs further hands-on testing.
 
+## Windows security warnings
+
+SARGE’s current beta releases are **unsigned**. Depending on your Windows settings and Microsoft’s reputation checks, you may see a security warning. Some installations won’t show one.
+
+Download installers only from the [official SARGE Desktop releases](https://github.com/natsteff/SARGE-Desktop/releases).
+
+- **“Windows protected your PC” — Microsoft Defender SmartScreen:** select **More info → Run anyway**, if that option is available and you trust the downloaded installer.
+- **“Smart App Control blocked this app”:** Smart App Control has no per-app exception. You can wait for a signed release or choose to turn it off under **Windows Security → App & browser control → Smart App Control settings**. Turning it off affects protection for your entire PC; the ability to turn it back on depends on your Windows version and updates. See [Microsoft’s Smart App Control guidance](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions) before changing this setting.
+
+If **Microsoft Defender Antivirus reports a named threat**, don’t assume it is the same warning. Stop and [report the detection](https://github.com/natsteff/SARGE-Desktop/issues), including the release version and detection name.
+
 ## Features
 
 - Register multiple drives or folders with nicknames, descriptions, volume identity and dates extracted from folder names.

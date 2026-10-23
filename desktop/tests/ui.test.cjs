@@ -135,3 +135,14 @@ test('Tools copies videos independently of photo matches with explicit review',a
 test('format settings retain CR2 JPG JPEG PNG defaults and allow another RAW pair',async t=>{
  const {d,w,calls}=await boot(t,{save_media_formats:()=>null});d.querySelector('[data-command="toolsMenu"]').click();d.querySelector('#openFormatSettings').click();assert.deepEqual([...d.querySelectorAll('[data-match-target]:checked')].map(e=>e.dataset.matchTarget),['jpg','jpeg','png']);d.querySelector('#matchingRaw').value='nef';d.querySelector('#matchingRaw').dispatchEvent(new w.Event('change'));let jpg=d.querySelector('[data-match-target="jpg"]');jpg.checked=true;jpg.dispatchEvent(new w.Event('change'));d.querySelector('#saveMediaFormats').click();await tick();const settings=calls.find(c=>c.command==='save_media_formats').args.settings;assert.ok(settings.rules.some(r=>r.raw==='cr2'&&r.targets.includes('png')));assert.ok(settings.rules.some(r=>r.raw==='nef'&&r.targets.includes('jpg')));assert.ok(settings.enabled.includes('mp4'));
 });
+
+test('job notice follows live busy state and clears on completion',async t=>{
+ let busy=false;const {w,d}=await boot(t,{start_jobs:()=>{busy=true;return {queued:1}},get_state:()=>({sources:[source],files:[],jobs:[],busy,catalog_path:'test.db'})});
+ d.querySelector('#scanAllButton').click();await tick();assert.match(d.querySelector('#notice').textContent,/Results update below/);
+ d.querySelector('[data-view="drives"]').click();assert.match(d.querySelector('#notice').textContent,/See Scan activity/);
+ busy=false;await w.eval('refresh()');assert.equal(d.querySelector('#notice').textContent,'');
+});
+test('open source uses native action and is disabled offline',async t=>{
+ const {d,calls}=await boot(t,{open_source:()=>null,get_state:()=>({sources:[source,{...source,id:'offline',online:false}],files:[],jobs:[],busy:false,catalog_path:'test.db'})});
+ const buttons=d.querySelectorAll('[data-open-source]');assert.equal(buttons[0].disabled,false);assert.equal(buttons[1].disabled,true);buttons[0].click();await tick();assert.equal(calls.find(c=>c.command==='open_source').args.id,'s');
+});

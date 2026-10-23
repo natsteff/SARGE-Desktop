@@ -40,3 +40,12 @@
 #metrics{grid-template-columns:repeat(5,minmax(0,1fr))}.video-focus{border-color:var(--olive);border-width:2px}.video-icon{font-size:22px;color:var(--olive)}.format-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:4px 12px}.format-grid .check-label{margin:6px 0}#dialogContent label:has(#matchingRaw),#dialogContent label:has(#videoDestination){display:grid;gap:7px;margin:14px 0}@media(max-width:1100px){#metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){#metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 aside{overflow-y:auto}footer{flex-shrink:0}
+
+/* Keep navigation spacing stable when the window is short. */
+aside>*{flex-shrink:0}aside>button[data-command]{margin-top:8px}aside footer{padding-top:24px}
+#drives>button[data-command="backupCatalog"]{margin-bottom:18px}
+#inventory .table-wrap{max-height:calc(100vh - 180px);min-height:240px;overflow:auto;scrollbar-gutter:stable}
+#inventory th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--line)}
+#inventory th:first-child,#inventory td:first-child{min-width:360px;width:360px}
+#inventory td:first-child{overflow-wrap:anywhere}#inventory td:nth-child(4){white-space:nowrap}
+#inventory .file-name{max-width:280px;overflow-wrap:anywhere}
