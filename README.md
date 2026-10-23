@@ -5,7 +5,7 @@
 **Scole’s Archive of RAWs, Galleries & Exports**  
 *Reporting for photo duty*
 
-[**Download Windows Beta 0.3.0-beta.3**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.3) · [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
+[**Download Windows Beta 0.3.0-beta.4**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.4) · [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
 
 SARGE’s main purpose is to **inventory photo images across multiple drives**, including USB and external drives that are currently disconnected. It focuses on **matching Canon RAW (CR2) originals to JPG exports**, keeping detailed per-image records and aggregate counts and sizes across your collection. Copy matched RAWs and exports—or unmatched files—to selected destinations to support storage and space-saving management. Copies are verified; SARGE does not delete your originals or reclaim space automatically.
 
