@@ -146,3 +146,17 @@ test('open source uses native action and is disabled offline',async t=>{
  const {d,calls}=await boot(t,{open_source:()=>null,get_state:()=>({sources:[source,{...source,id:'offline',online:false}],files:[],jobs:[],busy:false,catalog_path:'test.db'})});
  const buttons=d.querySelectorAll('[data-open-source]');assert.equal(buttons[0].disabled,false);assert.equal(buttons[1].disabled,true);buttons[0].click();await tick();assert.equal(calls.find(c=>c.command==='open_source').args.id,'s');
 });
+
+test('matching settings show multiple pairs and configured formats first',async t=>{
+ const {w,d,calls}=await boot(t,{save_media_formats:()=>null});w.eval('formatSettings()');
+ assert.match(d.querySelector('#configuredPairs').textContent,/CR2/);assert.match(d.querySelector('#matchingRaw option').textContent,/CR2 — configured/);
+ d.querySelector('#matchingRaw').value='cr3';d.querySelector('#matchingRaw').dispatchEvent(new w.Event('change'));
+ const target=d.querySelector('[data-match-target="jpg"]');target.checked=true;target.dispatchEvent(new w.Event('change'));
+ assert.match(d.querySelector('#configuredPairs').textContent,/CR2.*CR3/);assert.deepEqual([...d.querySelector('#matchingRaw').options].slice(0,2).map(o=>o.value),['cr2','cr3']);
+ d.querySelector('#saveMediaFormats').click();await tick();assert.equal(calls.find(c=>c.command==='save_media_formats').args.settings.rules.length,2);
+});
+test('default filename rule can be removed and restored with clear button state',async t=>{
+ const {w,d}=await boot(t);w.eval('namingSettings()');assert.equal(d.querySelector('#restoreNamingDefault').disabled,true);
+ d.querySelector('[data-delete-rule]').click();assert.equal(d.querySelector('#restoreNamingDefault').disabled,false);
+ d.querySelector('#restoreNamingDefault').click();assert.equal(d.querySelector('#restoreNamingDefault').disabled,true);assert.ok(d.querySelector('[data-delete-rule]'));
+});

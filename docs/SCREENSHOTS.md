@@ -1,6 +1,6 @@
 # Windows screenshot checklist
 
-Capture the installed SARGE Desktop **0.3.0-beta.4 or newer** on the Windows PC using the current catalog. Current README images were captured on beta.2; replace them with actual new captures when the UI or version changes. No Docker screens, generated screens or fabricated inventory.
+Capture the installed SARGE Desktop **0.3.0-beta.5 or newer** on the Windows PC using the current catalog. Current README images were captured on beta.2; replace them with actual new captures when the UI or version changes. No Docker screens, generated screens or fabricated inventory.
 
 Use **SARGE · Default** for all standard screens. Use one consistent window size (at least 1380 × 900; wider if needed for columns), keep the app title/version visible where possible and close unrelated dialogs and transient notices. Review the real names, paths and image previews for suitability before publishing.
 
@@ -36,3 +36,9 @@ Use **SARGE · Default** for all standard screens. Use one consistent window siz
 6. Update README.md captions/alt text for the actual captured version. Keep standard examples in the default theme and only one dark-theme example. Include the new filename settings/builder and EXIF filter screens.
 
 The full README SARGE logo is docs/images/sarge-logo.png. Keep it separate from the white-background app/favicon asset.
+
+## Beta 5 settings captures to refresh
+
+- **formats-matching-default.png:** show the upfront Configured matching pairs list with CR2 and CR3 both configured. Open the RAW format selector for an additional **formats-matching-dropdown-default.png** capture showing configured formats labeled and sorted first. Changes are drafts until saved; use intended settings or restore them afterward.
+- **filename-conventions-default.png:** show the disabled Add default CR2 filename rule button while the default rule exists, its Remove and enable/disable controls, and the explanation distinguishing filename extraction from format matching.
+- Retain the beta 4 capture checks above. Existing README images remain labeled beta 2 until new Windows captures are supplied.
