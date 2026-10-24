@@ -90,31 +90,6 @@ The same inventory in **Solly’s Soldiers · Dark**, with its alternate logo an
 
 ![SARGE Desktop beta 2 inventory in Solly’s Soldiers dark theme with its alternate logo, Appearance selector and separate EXIF and mapped camera columns](docs/images/theme-soldiers.png)
 
-## Updating from the desktop alpha
-
-Fully close SARGE and back up your catalog before installing. The database location is unchanged:
-
-```text
-%APPDATA%\io.github.natsteff.sarge.desktop
-```
-
-The app is now named **SARGE Desktop** rather than **SARGE Desktop Alpha**. If Windows retains the old Alpha installation, uninstall that entry with **Delete app data unchecked**, then use SARGE Desktop. Both versions use the same catalog; do not run them simultaneously. Your original photos are separate from the catalog and remain untouched.
-
-Existing inventories need a rescan to collect the newest metadata fields. Preview generation is optional and can be enabled in Preview settings.
-
-## Development
-
-```sh
-git clone https://github.com/natsteff/SARGE-Desktop.git
-cd SARGE-Desktop/desktop
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-Developers need Rust stable, Node.js 22+, pnpm and the platform build tools. GitHub Actions tests Windows/macOS and builds the Windows installer. Development can continue on either platform. [Detailed instructions](desktop/README.md).
-
-This independent repository starts from the desktop implementation developed in the earlier SARGE project, through commit `ecca779`. The Docker application is preserved in that separate repository and is no longer the focus of development. No Docker services, scanner helpers or inventory import scripts are included here.
-
 ## Development disclaimer
 
 SARGE Desktop was developed using **OpenAI Codex**, with human direction and review. AI-assisted development and automated tests do not guarantee error-free behavior. This beta still needs hands-on validation: test scan and copy workflows on a small collection with backups before using them for storage management.
