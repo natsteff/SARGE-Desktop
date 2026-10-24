@@ -6,7 +6,7 @@ The main inventory image is Nate’s supplied crop of the metadata inventory cap
 
 | Public file | Original batch file | SHA-256 |
 | --- | --- | --- |
-| inventory-default.png | Nate-supplied crop of inventory-metadata-default.png | `e9d09e895554388d7fcc100b6f46bbcbdd397a3907391061b214390e1986d1ea` |
+| inventory-default-beta6-cropped.png | Nate-supplied crop of inventory-metadata-default.png | `e9d09e895554388d7fcc100b6f46bbcbdd397a3907391061b214390e1986d1ea` |
 | settings-appearance-default.png | settings-appearance-default.png | `a478307e0cda5197c1d51247424dcaf8037957841a14651b86c7f04dfd8f2411` |
 | formats-matching-default.png | formats-matching-default.png | `1c84cccd57078031843bec00eeefb8eef08800dcce63f582bec937acf372c717` |
 | drives-default.png | drives-default.png | `331ac31d711c54e28a9fd01a3fdc215c8899c676705680d81b6b403434c4405d` |

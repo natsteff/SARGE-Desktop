@@ -10,7 +10,7 @@ Capture only views that need replacement because their UI or content changed. Do
 
 | Public PNG | One intended view |
 | --- | --- |
-| inventory-default.png | Representative Media Inventory with previews, five totals, adjacent EXIF/mapped camera columns and readable shutter speeds. |
+| inventory-default-beta6-cropped.png | Representative Media Inventory with previews, five totals, adjacent EXIF/mapped camera columns and readable shutter speeds. |
 | settings-appearance-default.png | Settings overview with the gear, five sections and Appearance selector. |
 | formats-matching-default.png | Configured RAW/export pairs and target choices. |
 | drives-default.png | Online/offline totals and one source’s counts, sizes and available actions. |

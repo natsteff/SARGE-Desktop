@@ -46,7 +46,7 @@ These screenshots show the installed Windows **0.3.0-beta.6**, captured on Octob
 
 Media Inventory keeps previews, RAW/export matches, sortable EXIF columns and filename-derived values together. **Camera model (EXIF)** and **Camera body (Mapped)** are separate: the example shows Canon EOS 6D alongside the filename label `1DX`. Shutter speeds appear as **0.6 s** and **1/60 s**.
 
-![SARGE Desktop beta 6 Media Inventory with five media totals, sample previews, separate EXIF and mapped camera columns, and readable shutter speeds](docs/images/inventory-default.png)
+![SARGE Desktop beta 6 Media Inventory with five media totals, sample previews, separate EXIF and mapped camera columns, and readable shutter speeds](docs/images/inventory-default-beta6-cropped.png)
 
 The sidebar gear and **SARGE Desktop → Settings…** open one Settings screen. Its five sections cover appearance, formats and matching, filename conventions, photo previews, and catalog tools. Appearance changes save immediately; processing preferences use each section’s Save button.
 
