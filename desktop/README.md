@@ -99,3 +99,7 @@ The sidebar gear and **SARGE Desktop → Settings…** in the application menu o
 - **Catalog & tools:** back up the catalog or review and copy videos independently of photo matching.
 
 Unsaved drafts remain when switching Settings sections or browsing the inventory during the same app session. Use each section’s Save button to apply changes. Closing the app discards unsaved drafts. A running job temporarily disables settings that change catalog processing.
+
+## Windows screenshots
+
+The [root README screenshot gallery](../README.md#appearance-and-screenshots) shows the real installed **0.3.0-beta.6** Windows app, captured October 24, 2026. It includes the consolidated Settings screen, matching configuration, inventory, drives, activity, EXIF filters, filename rules and one dark-theme example. Screenshots illustrate the UI; they do not imply that all acceptance tests passed.

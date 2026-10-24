@@ -42,53 +42,43 @@ If **Microsoft Defender Antivirus reports a named threat**, don’t assume it is
 
 Open **Settings → Appearance** using the sidebar gear or **SARGE Desktop → Settings…** in the application menu to switch between **SARGE · Default**, with light backgrounds and olive accents, and **Solly’s Soldiers · Dark**, with white text and red, blue and green accents. The logo changes with the theme. Your choice is remembered on this computer.
 
-These screenshots show the installed Windows **0.3.0-beta.2** with a sample photo catalog. Standard examples use the default theme; the final example shows Solly’s Soldiers · Dark. See the [capture checklist](docs/SCREENSHOTS.md).
+These screenshots show the installed Windows **0.3.0-beta.6**, captured on October 24, 2026 with a sample media catalog. Standard examples use the default theme; the final example shows Solly’s Soldiers · Dark. Click a screenshot to inspect its full resolution; the inventory examples were captured on a widescreen display.
 
-Photo inventory shows previews, RAW/export matches, sortable EXIF columns and filename-derived values. **Camera model (EXIF)** and **Camera body (Mapped)** are separate: the example shows Canon EOS 6D alongside the filename label `1DX`. Shutter speeds display as readable values such as **0.6 s** and **1/60 s**.
+Media Inventory keeps previews, RAW/export matches, sortable EXIF columns and filename-derived values together. **Camera model (EXIF)** and **Camera body (Mapped)** are separate: the example shows Canon EOS 6D alongside the filename label `1DX`. Shutter speeds appear as **0.6 s** and **1/60 s**.
 
-![SARGE Desktop beta 2 photo inventory in the default theme, with separate EXIF camera model and mapped camera body columns, previews and readable shutter speeds](docs/images/inventory-default.png)
+![SARGE Desktop beta 6 Media Inventory with five media totals, sample previews, separate EXIF and mapped camera columns, and readable shutter speeds](docs/images/inventory-default.png)
 
-<details>
-<summary>More saved metadata columns</summary>
+The sidebar gear and **SARGE Desktop → Settings…** open one Settings screen. Its five sections cover appearance, formats and matching, filename conventions, photo previews, and catalog tools. Appearance changes save immediately; processing preferences use each section’s Save button.
 
-Choose additional columns for capture time, dimensions, ISO, aperture, shutter speed and focal length. Saved values remain available when the source drive is disconnected.
+![SARGE Desktop beta 6 consolidated Settings screen showing the single sidebar gear, five settings sections and Appearance theme selector](docs/images/settings-appearance-default.png)
 
-![SARGE Desktop beta 2 inventory showing saved camera, lens, capture time, dimensions, ISO, aperture, shutter speed and focal length](docs/images/inventory-metadata-default.png)
+**Settings → Formats & matching** lists configured RAW/export pairs. Multiple RAW formats can be active together; this example has CR2 and CR3 paired with JPG/JPEG/PNG. Select a format to edit its targets, then save to apply the changes.
 
-</details>
+![SARGE Desktop beta 6 Formats and matching settings with CR2 and CR3 configured and JPG, JPEG and PNG targets selected](docs/images/formats-matching-default.png)
 
-Drives & locations highlights registered, online and offline totals. Each location has file counts and sizes for all indexed images, RAW originals, edited/exported files, matched RAWs and unmatched RAWs.
+Drives & locations shows registered, online and offline totals. Each location includes file counts and sizes for all files, RAW originals, edited/exported images, matched and unmatched RAWs, and videos. **Open in Explorer** reveals an available source.
 
-![SARGE Desktop beta 2 Drives and locations with prominent online and offline totals and per-location counts and storage summaries](docs/images/drives-default.png)
+![SARGE Desktop beta 6 Drives and locations showing three registered sources, two online, one offline, category counts and sizes, and an enabled Open in Explorer action](docs/images/drives-default.png)
 
-Bulk operations appear as one activity block with combined results. Expand **Results by location** to inspect individual sources; older history without a recorded batch identity remains separate.
+Bulk operations appear as one activity block with combined results. Expand **Results by location** to inspect each source. The captured sample scan completed both online locations; it reports 12 indexed files, 10 previews and one unavailable item, with no copies performed.
 
-![SARGE Desktop beta 2 Scan activity with a completed bulk scan grouped into one block and expanded results for its two locations](docs/images/activity-default.png)
+![SARGE Desktop beta 6 Scan activity with a completed two-location bulk scan and expanded per-location results](docs/images/activity-default.png)
 
-**EXIF Filters** provides searchable values and counts from the saved catalog, plus numeric or date ranges where applicable. Filters work independently of displayed columns and combine with source, file-type and match-state filters.
+**EXIF Filters** provides searchable saved values and counts, plus numeric or date ranges where applicable. Filters work independently of displayed columns and combine with source, file-type, match-state and search controls.
 
-![SARGE Desktop beta 2 EXIF Filters dialog showing available ISO values, file counts and minimum and maximum range controls](docs/images/exif-filters-default.png)
+![SARGE Desktop beta 6 EXIF and mapped filters dialog with ISO values, file counts and minimum and maximum range controls](docs/images/exif-filters-default.png)
 
-<details>
-<summary>Filter by camera model or missing metadata</summary>
+**Settings → Filename conventions** manages mapped fields without changing embedded EXIF or original files. The enabled default extracts the prefix before `_` as **Camera body (Mapped)** for CR2 files. Rules can be edited, disabled, removed and reordered; saving reapplies them to saved filenames, including offline locations.
 
-Select one or more actual camera models or **Not available**. Mapped filename fields are separate choices in the same field selector.
+![SARGE Desktop beta 6 Filename conventions settings with the enabled default CR2 rule and disabled duplicate-default button](docs/images/filename-conventions-default.png)
 
-![SARGE Desktop beta 2 camera model filter showing catalog-derived model choices, counts and Not available for missing metadata](docs/images/exif-camera-model-default.png)
+Build a rule visually: choose an example, highlight the desired value, select its mapped field and applicable file types, then test against saved filenames. This capture shows `1DX` highlighted in `1DX_1234.cr2`, with Camera body (Mapped) and CR2 selected. Test results appear farther down the dialog.
 
-</details>
+![SARGE Desktop beta 6 visual filename rule builder with 1DX highlighted, Camera body mapped field selected and CR2 enabled](docs/images/filename-rule-builder-default.png)
 
-**Filename conventions** manages rules for mapped fields without changing embedded EXIF or original files. The enabled default extracts the prefix before `_` as **Camera body (Mapped)** for CR2 files. Rules can be edited, disabled, removed and reordered; saving reapplies them to saved filenames, including offline locations.
+Media Inventory in **Solly’s Soldiers · Dark**, with its alternate logo and the single settings gear. The table is scrolled to lower sample rows, including a video whose photo-match status is Not applicable.
 
-![SARGE Desktop beta 2 Filename conventions settings with the enabled default CR2 camera body rule and controls to edit, remove, reorder and save rules](docs/images/filename-conventions-default.png)
-
-Build a rule visually: choose an example, highlight the desired value, select its mapped field and applicable file types, then test the results. Here `1DX_1234.cr2` produces `1DX`, while JPG files do not match the CR2-only rule.
-
-![SARGE Desktop beta 2 visual filename rule builder with 1DX highlighted, Camera body selected, CR2 enabled and preview results for saved filenames](docs/images/filename-rule-builder-default.png)
-
-The same inventory in **Solly’s Soldiers · Dark**, with its alternate logo and the Appearance switcher visible.
-
-![SARGE Desktop beta 2 inventory in Solly’s Soldiers dark theme with its alternate logo, Appearance selector and separate EXIF and mapped camera columns](docs/images/theme-soldiers.png)
+![SARGE Desktop beta 6 Media Inventory in Solly’s Soldiers dark theme with image previews, a video row, five totals and the sidebar settings gear](docs/images/theme-soldiers.png)
 
 ## Development disclaimer
 
