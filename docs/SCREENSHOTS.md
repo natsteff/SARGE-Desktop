@@ -33,4 +33,4 @@ Menu-open views, matching dropdowns, a second EXIF field, preview/catalog sectio
 
 ## October 24 review
 
-The private beta.6 batch contained 18 PNGs. Nine were selected for the README. The inventory/scrolled pair was byte-for-byte identical; other omitted images were optional alternate states or diagnostic evidence. The broad cumulative beta 4/5/6 checklist caused excess scope and is replaced by the focused plan above. No recapture was requested for this publication. Widescreen originals remain unedited; readers can open them at full resolution.
+The private beta.6 batch contained 18 PNGs. Nine were selected for the README. The inventory/scrolled pair was byte-for-byte identical; other omitted images were optional alternate states or diagnostic evidence. The broad cumulative beta 4/5/6 checklist caused excess scope and is replaced by the focused plan above. No recapture was requested for this publication. Nate subsequently supplied a cropped main inventory image to remove unused space; the dark widescreen image remains unedited. Readers can open images at full resolution.

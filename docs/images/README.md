@@ -1,12 +1,12 @@
 # Screenshot provenance
 
-The nine screenshots referenced by the root README are unedited captures of the actual installed Windows SARGE Desktop **0.3.0-beta.6**, taken October 24, 2026. They came from the private testing batch commit `245661f16d1d5d654b19a10cdd4bcb5448bb20ed`. Nate authorized publication after batch completion in the development chat on October 24. The original manifest retains the separately reported functional checks and unrun cases; publication does not imply a complete acceptance pass.
+The nine screenshots referenced by the root README show captures of the actual installed Windows SARGE Desktop **0.3.0-beta.6**, taken October 24, 2026. The originals came from the private testing batch commit `245661f16d1d5d654b19a10cdd4bcb5448bb20ed`. Nate authorized publication after batch completion in the development chat on October 24. The original manifest retains the separately reported functional checks and unrun cases; publication does not imply a complete acceptance pass.
 
-Inventory and dark originals are 3440 × 1392; other selected captures are 1382 × 1120. The metadata inventory view was chosen for the main inventory image because it shows EXIF/mapped separation and readable shutter values. No pixels were edited.
+The main inventory image is Nate’s supplied crop of the metadata inventory capture, published at 1715 × 1175 on October 24, 2026. It retains the EXIF/mapped camera columns and readable shutter values while removing unused space. The dark original remains 3440 × 1392; other selected captures are 1382 × 1120 and remain unedited.
 
 | Public file | Original batch file | SHA-256 |
 | --- | --- | --- |
-| inventory-default.png | inventory-metadata-default.png | `006680f67de8864a5ddcc4ff90f3602eca87761fd393726f7bcd3537cc94d8c7` |
+| inventory-default.png | Nate-supplied crop of inventory-metadata-default.png | `e9d09e895554388d7fcc100b6f46bbcbdd397a3907391061b214390e1986d1ea` |
 | settings-appearance-default.png | settings-appearance-default.png | `a478307e0cda5197c1d51247424dcaf8037957841a14651b86c7f04dfd8f2411` |
 | formats-matching-default.png | formats-matching-default.png | `1c84cccd57078031843bec00eeefb8eef08800dcce63f582bec937acf372c717` |
 | drives-default.png | drives-default.png | `331ac31d711c54e28a9fd01a3fdc215c8899c676705680d81b6b403434c4405d` |
