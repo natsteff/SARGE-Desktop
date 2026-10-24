@@ -9,10 +9,10 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
 async function boot(t,overrides={}){
  const dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'http://tauri.localhost',runScripts:'outside-only'});t.after(()=>dom.window.close());
  dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true};dom.window.HTMLDialogElement.prototype.close=function(){this.open=false};
- const calls=[];const handlers={get_state:()=>({sources:[source],files:[],jobs:[],busy:false,catalog_path:'test/catalog.db'}),source_candidates:()=>[],save_source:()=> 's',start_jobs:()=>({queued:1}),...overrides};
- dom.window.__TAURI__={core:{invoke:async(command,args)=>{calls.push({command,args});if(!handlers[command])throw Error('Unexpected command '+command);return handlers[command](args)}}};
+ const calls=[],events={};const handlers={get_state:()=>({sources:[source],files:[],jobs:[],busy:false,catalog_path:'test/catalog.db'}),source_candidates:()=>[],save_source:()=> 's',start_jobs:()=>({queued:1}),...overrides};
+ dom.window.__TAURI__={event:{listen:async(name,callback)=>{events[name]=callback;return ()=>{}}},core:{invoke:async(command,args)=>{calls.push({command,args});if(!handlers[command])throw Error('Unexpected command '+command);return handlers[command](args)}}};
  dom.window.eval(['theme.js','inventory.js','mapping-settings.js','media.js','app.js'].map(name=>fs.readFileSync(path.join(root,name),'utf8')).join('\n'));await tick();
- return {w:dom.window,d:dom.window.document,calls};
+ return {w:dom.window,d:dom.window.document,calls,events};
 }
 test('native bridge initializes, navigation works and theme persists',async t=>{
  const {w,d,calls}=await boot(t);assert.match(d.querySelector('#desktopInfo').textContent,/catalog.db/);assert.equal(d.querySelector('#scanAllButton').disabled,false);
@@ -55,7 +55,7 @@ test('bulk copy includes available active sources and uses separate namespaces',
 test('cached thumbnail clicks open the catalog original and settings use native commands',async t=>{
  const photo={id:1,source_id:'s',source_name:'Birds',path:'1DX_1.jpg',name:'1DX_1.jpg',kind:'edited',size:100,present:true,date:'2026-10-17',metadata:'{}',matched:false,preview:true};
  const {d,calls}=await boot(t,{get_state:()=>({sources:[source],files:[photo],jobs:[],busy:false,catalog_path:'test.db',previews_enabled:true,preview_bytes:100}),get_previews:()=>({'1':{data:'ZmFrZQ==',origin:'Original image'}}),open_photo:()=>null,set_previews:()=>null});await tick();assert.ok(d.querySelector('.photo-preview img'));d.querySelector('.photo-preview').click();await tick();assert.equal(calls.find(c=>c.command==='open_photo').args.id,1);
- d.querySelector('[data-command="previewSettings"]').click();assert.match(d.querySelector('#dialogContent').textContent,/160-pixel/);d.querySelector('#storePreviews').checked=false;d.querySelector('#savePreviews').click();await tick();assert.equal(calls.find(c=>c.command==='set_previews').args.enabled,false);
+ d.querySelector('[data-settings-section="previews"]').click();assert.match(d.querySelector('#settings-previews').textContent,/160-pixel/);d.querySelector('#storePreviews').checked=false;d.querySelector('#savePreviews').click();await tick();assert.equal(calls.find(c=>c.command==='set_previews').args.enabled,false);
 });
 
 test('unchanged polling retains thumbnail DOM and avoids fetching cached data',async t=>{
@@ -106,7 +106,7 @@ test('bulk activity groups by explicit batch identity and preserves expanded res
 test('visual mapping builder highlights a value, previews scope, and saves default rule changes',async t=>{
  const rules=[{id:'default-camera-cr2',field:'camera_body',before:'',after:'_',extensions:['cr2'],enabled:true}],f={...photo(1),name:'1DX_1234.cr2'};let saved=rules;
  const {d,w,calls}=await boot(t,{get_state:()=>({sources:[{...source,online:false}],files:[f],jobs:[],filename_rules:saved}),test_filename_rules:()=>[{name:f.name,mapped:{camera_body:{value:'1DX'}}}],save_filename_rules:({rules})=>{saved=rules;return 1}});
- d.querySelector('[data-command="namingSettings"]').click();assert.match(d.querySelector('#dialogContent').textContent,/Camera body \(Mapped\).*CR2/);d.querySelector('[data-edit-rule="0"]').click();let input=d.querySelector('#namingExample');input.setSelectionRange(0,3);input.dispatchEvent(new w.Event('select'));d.querySelector('#useNamingSelection').click();d.querySelector('#namingAllTypes').checked=true;d.querySelector('#namingAllTypes').dispatchEvent(new w.Event('change'));d.querySelector('#testNamingRule').click();await tick();assert.match(d.querySelector('#namingPreview').textContent,/1DX_1234.cr2.*1DX/);d.querySelector('#useNamingRule').click();d.querySelector('#saveNamingRules').click();await tick();let rule=calls.find(c=>c.command==='save_filename_rules').args.rules[0];assert.equal(rule.field,'camera_body');assert.equal(rule.before,'');assert.equal(rule.after,'_');assert.deepEqual([...rule.extensions],['cr2','jpg','jpeg','png']);assert.match(d.querySelector('#notice').textContent,/offline locations/);
+ d.querySelector('[data-settings-section="naming"]').click();assert.match(d.querySelector('#settings-naming').textContent,/Camera body \(Mapped\).*CR2/);d.querySelector('[data-edit-rule="0"]').click();let input=d.querySelector('#namingExample');input.setSelectionRange(0,3);input.dispatchEvent(new w.Event('select'));d.querySelector('#useNamingSelection').click();d.querySelector('#namingAllTypes').checked=true;d.querySelector('#namingAllTypes').dispatchEvent(new w.Event('change'));d.querySelector('#testNamingRule').click();await tick();assert.match(d.querySelector('#namingPreview').textContent,/1DX_1234.cr2.*1DX/);d.querySelector('#useNamingRule').click();d.querySelector('#saveNamingRules').click();await tick();let rule=calls.find(c=>c.command==='save_filename_rules').args.rules[0];assert.equal(rule.field,'camera_body');assert.equal(rule.before,'');assert.equal(rule.after,'_');assert.deepEqual([...rule.extensions],['cr2','jpg','jpeg','png']);assert.match(d.querySelector('#notice').textContent,/offline locations/);
 });
 test('large facet lists are bounded and retain selections across searches',async t=>{
  const files=Array.from({length:220},(_,i)=>photo(i+1,{Model:'Camera '+i}));const {d,w}=await boot(t,{get_state:()=>({sources:[source],files,jobs:[]})});d.querySelector('#exifFilterButton').click();assert.equal(d.querySelectorAll('#facetValues input').length,150);let first=d.querySelector('#facetValues input');first.checked=true;first.dispatchEvent(new w.Event('change',{bubbles:true}));d.querySelector('#facetSearch').value='Camera 219';d.querySelector('#facetSearch').dispatchEvent(new w.Event('input'));assert.equal(d.querySelectorAll('#facetValues input').length,1);let last=d.querySelector('#facetValues input');last.checked=true;last.dispatchEvent(new w.Event('change',{bubbles:true}));d.querySelector('#applyExifFilters').click();assert.equal(rowIds(d).length,2);
@@ -129,11 +129,11 @@ test('all-media filtering distinguishes images, RAW, videos, and non-matching im
 test('include-videos option requires an unmatched destination and is explicit in copy confirmation',async t=>{
  const {d,w,calls}=await boot(t);d.querySelector('[data-job]').click();d.querySelector('#jobMode').value='copy';d.querySelector('#jobMode').dispatchEvent(new w.Event('change'));assert.equal(d.querySelector('#includeVideos').disabled,true);assert.equal(d.querySelector('#includeVideos').checked,false);d.querySelector('#unmatchedPath').value='D:\\unmatched';w.updateVideoCopyOption();assert.equal(d.querySelector('#includeVideos').disabled,false);d.querySelector('#includeVideos').checked=true;d.querySelector('#jobForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));assert.match(d.querySelector('#dialogContent').textContent,/Videos WILL be included/);d.querySelector('#confirmCopy').click();await tick();assert.equal(calls.find(c=>c.command==='start_jobs').args.request.include_videos,true);
 });
-test('Tools copies videos independently of photo matches with explicit review',async t=>{
- const {d,w,calls}=await boot(t,{get_state:()=>({sources:[source],files:[videoFile()],jobs:[]})});d.querySelector('[data-command="toolsMenu"]').click();d.querySelector('#copyAllVideos').click();d.querySelector('#videoDestination').value='D:\\videos';d.querySelector('#reviewVideoCopy').click();assert.match(d.querySelector('#dialogContent').textContent,/1 inventoried videos/);assert.ok(!calls.some(c=>c.command==='start_jobs'));d.querySelector('#confirmVideoCopy').click();await tick();const req=calls.find(c=>c.command==='start_jobs').args.request;assert.equal(req.mode,'copy-videos');assert.equal(req.matched,'');assert.equal(req.confirmed_video_copy,true);
+test('Catalog tools copy videos independently of photo matches with explicit review',async t=>{
+ const {d,w,calls}=await boot(t,{get_state:()=>({sources:[source],files:[videoFile()],jobs:[]})});d.querySelector('[data-settings-section="catalog"]').click();d.querySelector('[data-command="copyVideos"]').click();d.querySelector('#videoDestination').value='D:\\videos';d.querySelector('#reviewVideoCopy').click();assert.match(d.querySelector('#dialogContent').textContent,/1 inventoried videos/);assert.ok(!calls.some(c=>c.command==='start_jobs'));d.querySelector('#confirmVideoCopy').click();await tick();const req=calls.find(c=>c.command==='start_jobs').args.request;assert.equal(req.mode,'copy-videos');assert.equal(req.matched,'');assert.equal(req.confirmed_video_copy,true);
 });
 test('format settings retain CR2 JPG JPEG PNG defaults and allow another RAW pair',async t=>{
- const {d,w,calls}=await boot(t,{save_media_formats:()=>null});d.querySelector('[data-command="toolsMenu"]').click();d.querySelector('#openFormatSettings').click();assert.deepEqual([...d.querySelectorAll('[data-match-target]:checked')].map(e=>e.dataset.matchTarget),['jpg','jpeg','png']);d.querySelector('#matchingRaw').value='nef';d.querySelector('#matchingRaw').dispatchEvent(new w.Event('change'));let jpg=d.querySelector('[data-match-target="jpg"]');jpg.checked=true;jpg.dispatchEvent(new w.Event('change'));d.querySelector('#saveMediaFormats').click();await tick();const settings=calls.find(c=>c.command==='save_media_formats').args.settings;assert.ok(settings.rules.some(r=>r.raw==='cr2'&&r.targets.includes('png')));assert.ok(settings.rules.some(r=>r.raw==='nef'&&r.targets.includes('jpg')));assert.ok(settings.enabled.includes('mp4'));
+ const {d,w,calls}=await boot(t,{save_media_formats:()=>null});d.querySelector('[data-settings-section="formats"]').click();assert.deepEqual([...d.querySelectorAll('[data-match-target]:checked')].map(e=>e.dataset.matchTarget),['jpg','jpeg','png']);d.querySelector('#matchingRaw').value='nef';d.querySelector('#matchingRaw').dispatchEvent(new w.Event('change'));let jpg=d.querySelector('[data-match-target="jpg"]');jpg.checked=true;jpg.dispatchEvent(new w.Event('change'));d.querySelector('#saveMediaFormats').click();await tick();const settings=calls.find(c=>c.command==='save_media_formats').args.settings;assert.ok(settings.rules.some(r=>r.raw==='cr2'&&r.targets.includes('png')));assert.ok(settings.rules.some(r=>r.raw==='nef'&&r.targets.includes('jpg')));assert.ok(settings.enabled.includes('mp4'));
 });
 
 test('job notice follows live busy state and clears on completion',async t=>{
@@ -159,4 +159,29 @@ test('default filename rule can be removed and restored with clear button state'
  const {w,d}=await boot(t);w.eval('namingSettings()');assert.equal(d.querySelector('#restoreNamingDefault').disabled,true);
  d.querySelector('[data-delete-rule]').click();assert.equal(d.querySelector('#restoreNamingDefault').disabled,false);
  d.querySelector('#restoreNamingDefault').click();assert.equal(d.querySelector('#restoreNamingDefault').disabled,true);assert.ok(d.querySelector('[data-delete-rule]'));
+});
+
+test('gear and native menu share settings, retain drafts across navigation and preserve inventory filters',async t=>{
+ const {w,d,calls,events}=await boot(t);
+ assert.equal(d.querySelectorAll('aside [data-command]').length,1);
+ d.querySelector('#search').value='Birds';d.querySelector('#settingsGear').click();
+ assert.equal(d.querySelector('#heading').textContent,'Settings');assert.equal(d.querySelector('#metrics').hidden,true);
+ assert.equal(d.querySelector('#settings-appearance').hidden,false);
+ d.querySelector('[data-settings-section="formats"]').click();
+ d.querySelector('#matchingRaw').value='nef';d.querySelector('#matchingRaw').dispatchEvent(new w.Event('change'));
+ let target=d.querySelector('[data-match-target="jpg"]');target.checked=true;target.dispatchEvent(new w.Event('change'));
+ d.querySelector('[data-settings-section="previews"]').click();d.querySelector('[data-settings-section="formats"]').click();
+ assert.equal(d.querySelector('#matchingRaw').value,'nef');assert.equal(d.querySelector('[data-match-target="jpg"]').checked,true);
+ assert.ok(!calls.some(c=>c.command==='save_media_formats'));
+ d.querySelector('[data-view="inventory"]').click();assert.equal(d.querySelector('#search').value,'Birds');assert.equal(d.querySelector('#metrics').hidden,false);
+ events['open-settings']();assert.equal(d.querySelector('#settings-formats').hidden,false);assert.equal(d.querySelector('#dialog').open,false);
+ d.querySelector('[data-settings-section="naming"]').click();d.querySelector('#addNamingRule').click();assert.equal(d.querySelector('#dialog').open,true);
+ d.querySelector('#cancelNamingRule').click();assert.equal(d.querySelector('#dialog').open,false);assert.equal(d.querySelector('#settings-naming').hidden,false);
+});
+test('settings preserve drafts on backend errors and reflect busy job restrictions',async t=>{
+ let busy=true;const {w,d}=await boot(t,{get_state:()=>({sources:[source],files:[],jobs:[],busy}),save_media_formats:()=>{throw Error('Test save failure')}});
+ d.querySelector('[data-settings-section="formats"]').click();assert.equal(d.querySelector('#saveMediaFormats').disabled,true);
+ busy=false;await w.refresh();assert.equal(d.querySelector('#saveMediaFormats').disabled,false);
+ d.querySelector('#saveMediaFormats').click();await tick();assert.match(d.querySelector('#formatsError').textContent,/Test save failure/);assert.ok(d.querySelector('#matchingRaw'));
+ d.querySelector('[data-settings-section="previews"]').click();busy=true;await w.refresh();assert.equal(d.querySelector('#savePreviews').disabled,true);assert.equal(d.querySelector('#generatePreviews').disabled,true);
 });

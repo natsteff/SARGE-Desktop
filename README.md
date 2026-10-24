@@ -40,7 +40,7 @@ If **Microsoft Defender Antivirus reports a named threat**, don’t assume it is
 
 ## Appearance and screenshots
 
-Use **Appearance** in the sidebar to switch between **SARGE · Default**, with light backgrounds and olive accents, and **Solly’s Soldiers · Dark**, with white text and red, blue and green accents. The logo changes with the theme. Your choice is remembered on this computer.
+Open **Settings → Appearance** using the sidebar gear or **SARGE Desktop → Settings…** in the application menu to switch between **SARGE · Default**, with light backgrounds and olive accents, and **Solly’s Soldiers · Dark**, with white text and red, blue and green accents. The logo changes with the theme. Your choice is remembered on this computer.
 
 These screenshots show the installed Windows **0.3.0-beta.2** with a sample photo catalog. Standard examples use the default theme; the final example shows Solly’s Soldiers · Dark. See the [capture checklist](docs/SCREENSHOTS.md).
 

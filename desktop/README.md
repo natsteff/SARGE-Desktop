@@ -52,7 +52,7 @@ License: AGPL-3.0-only, see [LICENSE](../LICENSE).
 
 ## Optional photo previews
 
-Open **Preview settings** under Appearance. Previews are off by default. Enable **Store and display photo previews**, then scan normally or choose **Generate missing previews** to populate the current inventory.
+Open **Settings → Photo previews** using the sidebar gear or **SARGE Desktop → Settings…** in the application menu. Previews are off by default. Enable **Store and display photo previews**, then scan normally or choose **Generate missing previews** to populate the current inventory.
 
 Small JPEG previews (up to 160 × 160 pixels) are stored in SQLite, so they remain visible when a drive is offline. JPG/JPEG and PNG files are decoded natively, with orientation applied where available. For CR2, SARGE tries embedded JPEGs in the first 32 MiB of the RAW; if none can be decoded it uses a confirmed matched export when available. Unsupported images retain a placeholder; a preview failure does not prevent inventory or copying. This is not full RAW demosaicing.
 
@@ -80,10 +80,22 @@ Every optional inventory column is sortable. Numeric values (including shutter e
 
 **EXIF Filters** opens a dialog with searchable, multi-select values derived from the catalog, including an explicit Not available choice. Numeric fields also offer minimum/maximum ranges; dimensions ranges use megapixels, shutter ranges use seconds, and date fields use date ranges. Choices within a field are OR; different fields and the existing source/type/match/search controls are AND. Counts reflect other filters, and selected values remain available even with zero matches. Filters work offline and independently of displayed columns. Active filter chips can be removed individually or cleared together. Filter selections last for the current app session.
 
-Open **Filename conventions** in the sidebar. The enabled default rule extracts the prefix before `_` from CR2 names: `1DX_1234.cr2` becomes Camera body (Mapped) = 1DX. This is a filename label, not proof of the camera model. EXIF remains unchanged. To build a rule, choose a catalog example or use Choose example file, highlight its value with the mouse or Shift + arrows, click Use highlighted text, choose the mapped field and file types, then test against saved filenames. Use this rule returns to settings; Save settings and apply persists all changes. First enabled matching rule wins per field. Rules can be edited, disabled, removed and reordered.
+Open **Settings → Filename conventions**. The enabled default rule extracts the prefix before `_` from CR2 names: `1DX_1234.cr2` becomes Camera body (Mapped) = 1DX. This is a filename label, not proof of the camera model. EXIF remains unchanged. To build a rule, choose a catalog example or use Choose example file, highlight its value with the mouse or Shift + arrows, click Use highlighted text, choose the mapped field and file types, then test against saved filenames. Use this rule returns to settings; Save settings and apply persists all changes. First enabled matching rule wins per field. Rules can be edited, disabled, removed and reordered.
 
 The builder captures text after a fixed prefix and before the separator following the highlighted value (or through the end of the filename). Extensions are chosen with checkboxes, not typed templates. All supported image types means CR2/JPG/JPEG/PNG. Select only the intended portion; preview results before applying a rule. Changing rules recalculates mapped values using saved filenames, including offline and removed locations, without reading or modifying original photos. The rules and derived values are included in catalog backups. Folder-date detection is separate and continues unchanged.
 
 Mapped fields are independent choices in Customize columns and EXIF Filters, paired beside their related actual EXIF column when both are selected. Camera model (EXIF), Filename prefix and Camera body (Mapped) have distinct meanings. File details show saved mapped values and rule IDs alongside embedded metadata.
 
 New bulk scan/copy actions share a persisted batch ID and appear as one activity block with totals, overall status and expandable per-location results/errors. Legacy jobs from before beta.2 remain separate because their original batch identity was not recorded; timestamps alone are not used to guess membership. Activity retains the newest 100 operations with all their location results.
+
+## Settings (beta.6)
+
+The sidebar gear and **SARGE Desktop → Settings…** in the application menu open the same Settings screen. The menu shortcut is **Ctrl+,** on Windows and **Cmd+,** on macOS.
+
+- **Appearance:** choose a theme; changes save immediately on this computer.
+- **Formats & matching:** select inventory formats and RAW/export pairs, then save to recalculate matches.
+- **Filename conventions:** build, order and enable filename mapping rules, then save to apply them to the catalog.
+- **Photo previews:** enable stored previews, generate missing previews or clear the preview cache.
+- **Catalog & tools:** back up the catalog or review and copy videos independently of photo matching.
+
+Unsaved drafts remain when switching Settings sections or browsing the inventory during the same app session. Use each section’s Save button to apply changes. Closing the app discards unsaved drafts. A running job temporarily disables settings that change catalog processing.

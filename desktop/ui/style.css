@@ -49,3 +49,18 @@ aside>*{flex-shrink:0}aside>button[data-command]{margin-top:8px}aside footer{pad
 #inventory th:first-child,#inventory td:first-child{min-width:360px;width:360px}
 #inventory td:first-child{overflow-wrap:anywhere}#inventory td:nth-child(4){white-space:nowrap}
 #inventory .file-name{max-width:280px;overflow-wrap:anywhere}
+
+/* One settings destination, shared by the native menu and sidebar gear. */
+[hidden]{display:none!important}
+.settings-gear{align-self:flex-start;margin-top:28px!important;width:44px;height:44px;padding:0;font-size:25px;line-height:1}
+.settings-gear.active{border-color:var(--olive);color:var(--olive)}
+.settings-intro{max-width:760px;margin:0 0 20px}
+.settings-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px;border-bottom:1px solid var(--line);padding-bottom:16px}
+.settings-tabs button[aria-current="page"]{background:var(--olive);color:var(--paper);border-color:var(--olive);font-weight:650}
+.settings-panel{max-width:1040px;padding:28px}.settings-panel h2{font-size:23px}.settings-panel h3{margin:0 0 6px}
+.settings-panel p{max-width:850px}.settings-panel .theme-picker{max-width:360px;font-size:11px}.settings-panel .theme-picker select{font-size:14px;padding:12px}
+.settings-panel label:has(#matchingRaw){display:grid;gap:8px;max-width:400px;margin:20px 0}
+.settings-panel .card{background:var(--paper)}
+.settings-action{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 0;border-top:1px solid var(--line)}
+.settings-action button{flex-shrink:0}.settings-action p{margin:0}.settings-panel [role="alert"]{color:var(--red)}
+@media(max-width:1000px){.settings-panel{padding:20px}.settings-action{align-items:flex-start;flex-direction:column;gap:12px}}

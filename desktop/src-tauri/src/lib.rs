@@ -628,6 +628,21 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+            let settings = MenuItemBuilder::with_id("settings", "Settings…")
+                .accelerator("CmdOrCtrl+,")
+                .build(app)?;
+            let application = SubmenuBuilder::new(app, "SARGE Desktop")
+                .item(&settings).separator().quit().build()?;
+            let edit = SubmenuBuilder::new(app, "Edit")
+                .undo().redo().separator().cut().copy().paste().select_all().build()?;
+            app.set_menu(MenuBuilder::new(app).item(&application).item(&edit).build()?)?;
+            app.on_menu_event(|app, event| {
+                if event.id().as_ref() == "settings" {
+                    use tauri::Emitter;
+                    let _ = app.emit("open-settings", ());
+                }
+            });
             let directory = app.path().app_data_dir()?;
             std::fs::create_dir_all(&directory)?;
             let db = directory.join("catalog.sqlite3");
