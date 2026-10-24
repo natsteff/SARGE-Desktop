@@ -92,6 +92,6 @@ The same inventory in **Solly’s Soldiers · Dark**, with its alternate logo an
 
 ## Development disclaimer
 
-SARGE Desktop was developed using **OpenAI Codex**, with human direction and review. AI-assisted development and automated tests do not guarantee error-free behavior. This beta still needs hands-on validation: test scan and copy workflows on a small collection with backups before using them for storage management.
+SARGE Desktop was developed using **OpenAI Codex**, with human direction and review. AI-assisted development and automated tests do not guarantee error-free behavior. Scan and copy workflows have been tested on small collections. We are now seeking results and feedback from larger-scale use. Keep backups when using SARGE for storage management.
 
 AGPL-3.0-only. See [LICENSE](LICENSE).
