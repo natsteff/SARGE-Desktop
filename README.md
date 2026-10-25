@@ -7,7 +7,7 @@
 
 [**Download Windows Beta 0.3.0-beta.6**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.6) · [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
 
-SARGE’s main purpose is to **inventory photo images across multiple drives**, including USB and external drives that are currently disconnected. It focuses on **matching Canon RAW (CR2) originals to JPG exports**, keeping detailed per-image records and aggregate counts and sizes across your collection. Copy matched RAWs and exports—or unmatched files—to selected destinations to support storage and space-saving management. Copies are verified; SARGE does not delete your originals or reclaim space automatically.
+SARGE’s main purpose is to **inventory photos and videos across multiple drives**, including USB and external drives that are currently disconnected. It tracks individual media files along with counts and storage sizes across your collection, even when a registered drive is offline. For photos, SARGE can **match RAW originals with their edited/exported images** using configurable file-format pairs; **Canon CR2 to JPG is just a default example**, not a limitation. Multiple RAW and export formats can be configured to suit different cameras and workflows. Copy matched RAWs and exports—or unmatched files—to selected destinations to support storage management. Copies are verified; SARGE does not delete your originals or reclaim space automatically.
 
 Windows 10/11 x64 is the primary target. No Docker, Python, helper, or ExifTool installation is required. macOS is a bonus development target. This beta installer is unsigned and needs further hands-on testing.
 
