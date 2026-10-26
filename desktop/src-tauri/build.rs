@@ -34,7 +34,7 @@ fn main() {
     let value = js
         .split("Object.freeze(")
         .nth(1)
-        .and_then(|s| s.strip_suffix(");\n"))
+        .and_then(|s| s.trim_end().strip_suffix(");"))
         .expect("generated frontend identity");
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(value).unwrap(),
