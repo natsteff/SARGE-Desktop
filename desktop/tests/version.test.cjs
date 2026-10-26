@@ -8,7 +8,7 @@ test('authoritative identity detects drift and synchronizes every existing versi
  for(const file of ['scripts/version.mjs','release.json','package.json','ui/build-info.js','src-tauri/Cargo.toml','src-tauri/Cargo.lock','src-tauri/tauri.conf.json'])fs.copyFileSync(path.join(__dirname,'..',file),path.join(root,file));
  const run=(...args)=>spawnSync(process.execPath,[path.join(root,'scripts/version.mjs'),...args],{encoding:'utf8'});
  const baseline=JSON.parse(fs.readFileSync(path.join(root,'release.json'),'utf8')).version;
- for(const file of ['ui/build-info.js','src-tauri/tauri.conf.json']){const target=path.join(root,file);fs.writeFileSync(target,fs.readFileSync(target,'utf8').replace(/\r?\n/g,'\r\n'))}
+ for(const file of ['package.json','src-tauri/Cargo.toml','src-tauri/Cargo.lock','src-tauri/tauri.conf.json','ui/build-info.js']){const target=path.join(root,file);fs.writeFileSync(target,fs.readFileSync(target,'utf8').replace(/\r?\n/g,'\r\n'))}
  assert.equal(run('--check').status,0);
  for(const file of ['package.json','src-tauri/Cargo.toml','src-tauri/Cargo.lock','src-tauri/tauri.conf.json','ui/build-info.js']){
   const target=path.join(root,file);fs.writeFileSync(target,fs.readFileSync(target,'utf8').replace(baseline,'99.99.99-beta.999'));
