@@ -70,3 +70,5 @@ aside>*{flex-shrink:0}aside>button[data-command]{margin-top:8px}aside footer{pad
 #destinations label.check-label{display:flex;align-items:center;gap:10px;margin:4px 0 0}
 #destinations .check-label input[type="checkbox"]{flex:0 0 auto;width:auto;margin:0}
 #videoDestinationHint{color:var(--muted);line-height:1.5}
+
+.update-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;background:var(--paper);border:1px solid var(--olive);border-radius:8px;padding:16px;margin-bottom:20px}.update-banner p{margin:6px 0 0}.update-actions{display:flex;gap:8px}#updateDialog{overflow-wrap:anywhere}#updateResultError,#automaticUpdateError{color:var(--red)}#appVersion{letter-spacing:0}#settings-updates .check-label{align-items:flex-start}#settings-updates .check-label input{flex:0 0 auto;margin:3px 0 0}

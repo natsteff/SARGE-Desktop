@@ -35,6 +35,8 @@ jobs:
         working-directory: desktop
       - run: node --check ui/media.js
         working-directory: desktop
+      - run: node --check ui/updates.js
+        working-directory: desktop
       - run: pnpm test
         working-directory: desktop
       - run: cargo test --locked --lib

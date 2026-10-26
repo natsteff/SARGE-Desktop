@@ -1,6 +1,6 @@
 [package]
 name = "sarge-desktop"
-version = "0.3.0-beta.7"
+version = "0.3.0-beta.8"
 description = "SARGE native photo inventory"
 authors = ["natsteff"]
 license = "AGPL-3.0-only"
@@ -11,6 +11,7 @@ name = "sarge_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
+serde_json = "1"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
@@ -32,3 +33,7 @@ kamadak-exif = "0.6"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp"] }
 base64 = "0.22"
 open = "5"
+
+# Public release checks only; no installer/updater framework.
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "native-tls"] }
+semver = "1"

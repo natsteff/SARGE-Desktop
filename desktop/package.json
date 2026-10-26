@@ -1,12 +1,14 @@
 {
   "name": "sarge-desktop",
-  "version": "0.3.0-beta.7",
+  "version": "0.3.0-beta.8",
   "private": true,
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
     "build": "tauri build",
-    "test": "node --test tests/ui.test.cjs"
+    "test": "node scripts/version.mjs --check && node --test tests/*.test.cjs",
+    "version:sync": "node scripts/version.mjs",
+    "version:check": "node scripts/version.mjs --check"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

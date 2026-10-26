@@ -6,7 +6,7 @@ Windows-focused native desktop edition. macOS remains a bonus development target
 
 Prefer the installer on the [Windows desktop beta release](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.7). For development builds, download the **SARGE-Windows-x64-Beta** artifact from the latest successful **Build SARGE Desktop** GitHub Actions run on this branch. Extract the artifact ZIP and run the `SARGE Desktop_*_x64-setup.exe` installer. GitHub Actions artifact downloads require signing into GitHub. An unsigned prerelease installer may also be attached to GitHub Releases.
 
-This beta targets Windows 10/11 x64 and installs for the current user. No Docker, Python, Tcl/Tk, PowerShell scanner, or ExifTool installation is required. The installer uses Microsoft's WebView2 bootstrapper if the runtime is absent; that step may require an internet connection. The app works offline afterward. Installer downloads are unsigned during this beta, so Windows may warn or apply organizational restrictions.
+This beta targets Windows 10/11 x64 and installs for the current user. No Docker, Python, Tcl/Tk, PowerShell scanner, or ExifTool installation is required. The installer uses Microsoft's WebView2 bootstrapper if the runtime is absent; that step may require an internet connection. Inventory and copying work offline afterward. The optional update checker described below contacts GitHub. Installer downloads are unsigned during this beta, so Windows may warn or apply organizational restrictions.
 
 ## First scan and copy
 
@@ -105,3 +105,9 @@ Unsaved drafts remain when switching Settings sections or browsing the inventory
 ## Windows screenshots
 
 The [root README screenshot gallery](../README.md#appearance-and-screenshots) shows the real installed **0.3.0-beta.6** Windows app, captured October 24, 2026. It includes the consolidated Settings screen, matching configuration, inventory, drives, activity, EXIF filters, filename rules and one dark-theme example. Screenshots illustrate the UI; they do not imply that all acceptance tests passed.
+
+## Update notifications (beta.8)
+
+Beta.8 adds **Help → Check for Updates…**, version/build diagnostics in About, and a saved **Settings → Updates → Automatically check for updates at startup** preference, enabled by default. Startup checks are nonblocking and limited to once per 24 hours; disable the preference to prevent automatic network checks. Manual checks remain available. GitHub receives ordinary connection information but no catalog contents, filenames or paths. SARGE opens the official release page for user-managed installation; it never downloads installers, installs updates or restarts automatically.
+
+See [implementation behavior, identity preparation and targeted acceptance plan](../docs/UPDATE-CHECKS.md). Existing screenshots retain their actual beta.6 labels.

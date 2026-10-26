@@ -9,9 +9,9 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
 async function boot(t,overrides={}){
  const dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'http://tauri.localhost',runScripts:'outside-only'});t.after(()=>dom.window.close());
  dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true};dom.window.HTMLDialogElement.prototype.close=function(){this.open=false};
- const calls=[],events={};const handlers={get_state:()=>({sources:[source],files:[],jobs:[],busy:false,catalog_path:'test/catalog.db'}),source_candidates:()=>[],save_source:()=> 's',start_jobs:()=>({queued:1}),...overrides};
+ const calls=[],events={};const handlers={get_state:()=>({sources:[source],files:[],jobs:[],busy:false,catalog_path:'test/catalog.db'}),source_candidates:()=>[],save_source:()=> 's',start_jobs:()=>({queued:1}),get_update_status:()=>({identity:{version:'0.3.0-beta.7',build:1,source_revision:'fixture',source_modified:false,development:false,platform:'windows_x86_64'},automatic_enabled:false,last_attempt:0,last_success:0,backoff_until:0}),...overrides};
  dom.window.__TAURI__={event:{listen:async(name,callback)=>{events[name]=callback;return ()=>{}}},core:{invoke:async(command,args)=>{calls.push({command,args});if(!handlers[command])throw Error('Unexpected command '+command);return handlers[command](args)}}};
- dom.window.eval(['theme.js','inventory.js','mapping-settings.js','media.js','app.js'].map(name=>fs.readFileSync(path.join(root,name),'utf8')).join('\n'));await tick();
+ dom.window.eval(['theme.js','inventory.js','mapping-settings.js','media.js','build-info.js','app.js','updates.js'].map(name=>fs.readFileSync(path.join(root,name),'utf8')).join('\n'));await tick();
  return {w:dom.window,d:dom.window.document,calls,events};
 }
 test('native bridge initializes, navigation works and theme persists',async t=>{
@@ -204,4 +204,49 @@ test('Drives video-only action is disabled while busy or without online sources'
  const {w,d}=await boot(t,{get_state:()=>snapshot});assert.equal(d.querySelector('#copyVideosButton').disabled,true);
  snapshot={...snapshot,busy:false,sources:[{...source,online:false}]};await w.refresh();assert.equal(d.querySelector('#copyVideosButton').disabled,true);
  snapshot={...snapshot,sources:[source]};await w.refresh();assert.equal(d.querySelector('#copyVideosButton').disabled,false);
+});
+
+const updateIdentity={version:'0.3.0-beta.7',build:1,source_revision:'fixture-revision',source_modified:false,development:false,platform:'windows_x86_64'};
+const updateSnapshot=(enabled=false)=>({identity:updateIdentity,automatic_enabled:enabled,last_attempt:0,last_success:0,backoff_until:0});
+const newerUpdate={status:'newer',installed:updateIdentity,release:{version:'0.3.0-beta.8',build:1,url:'https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.8',installer_available:true,key:'v0.3.0-beta.8:1'},message:'A newer installer is available.'};
+test('disabled startup update checks do not call the checker; manual Help check remains available',async t=>{
+ const {d,events,calls}=await boot(t,{get_update_status:()=>updateSnapshot(false),check_for_updates:()=>newerUpdate,open_update_release:()=>null});
+ assert.ok(!calls.some(c=>c.command==='check_for_updates'));assert.equal(d.querySelector('#appVersion').textContent,'0.3.0-beta.7 (Build 1)');
+ events['check-for-updates']();await tick();assert.equal(calls.find(c=>c.command==='check_for_updates').args.manual,true);
+ assert.match(d.querySelector('#updateDialogContent').textContent,/Update available/);d.querySelector('#viewUpdateRelease').click();await tick();assert.equal(calls.find(c=>c.command==='open_update_release').args.url,newerUpdate.release.url);
+});
+test('startup checking never blocks catalog navigation and Later persists the release dismissal',async t=>{
+ let finish;const pending=new Promise(resolve=>finish=resolve);
+ const {d,calls}=await boot(t,{get_update_status:()=>updateSnapshot(true),check_for_updates:()=>pending,dismiss_update:()=>null});
+ assert.match(d.querySelector('#desktopInfo').textContent,/catalog.db/);d.querySelector('[data-view="drives"]').click();assert.equal(d.querySelector('#drives').hidden,false);assert.equal(d.querySelector('#dialog').open,false);assert.equal(d.querySelector('#updateDialog').open,false);
+ finish(newerUpdate);await tick();assert.equal(d.querySelector('#updateNotice').hidden,false);assert.equal(d.querySelector('#updateDialog').open,false);
+ d.querySelector('#laterUpdate').click();await tick();assert.equal(calls.find(c=>c.command==='dismiss_update').args.key,newerUpdate.release.key);assert.equal(d.querySelector('#updateNotice').hidden,true);
+});
+test('automatic failures, current, unknown, source-only and backend-suppressed notices stay quiet',async t=>{
+ for(const status of ['failure','current','unknown','source_only','skipped']){
+  const {d}=await boot(t,{get_update_status:()=>updateSnapshot(true),check_for_updates:()=>({...newerUpdate,status})});
+  assert.equal(d.querySelector('#updateNotice').hidden,true,status);assert.equal(d.querySelector('#updateDialog').open,false,status);assert.equal(d.querySelector('#notice').textContent,'',status);
+ }
+});
+test('turning automatic checks off persists preference and suppresses an in-flight startup result',async t=>{
+ let enabled=true,finish;const pending=new Promise(resolve=>finish=resolve);
+ const {d,w,calls}=await boot(t,{get_update_status:()=>updateSnapshot(enabled),check_for_updates:()=>pending,set_update_automatic:({enabled:value})=>{enabled=value}});
+ d.querySelector('[data-settings-section="updates"]').click();const input=d.querySelector('#automaticUpdates');input.checked=false;input.dispatchEvent(new w.Event('change'));await tick();
+ assert.equal(calls.find(c=>c.command==='set_update_automatic').args.enabled,false);finish(newerUpdate);await tick();assert.equal(d.querySelector('#updateNotice').hidden,true);assert.equal(input.checked,false);
+});
+test('manual results distinguish states, report errors and allow a useful retry',async t=>{
+ let attempt=0;const {d,events}=await boot(t,{get_update_status:()=>updateSnapshot(false),check_for_updates:()=>{if(!attempt++)throw Error('Offline fixture');return {status:'current',installed:updateIdentity,message:'Build confirmed'}}});
+ events['check-for-updates']();await tick();assert.match(d.querySelector('#updateDialogContent').textContent,/Update check failed.*Offline fixture/s);
+ d.querySelector('#retryUpdateCheck').click();await tick();assert.match(d.querySelector('#updateDialogContent').textContent,/Version and build confirmed/);
+ for(const [status,title] of [['unknown','Update status unknown'],['source_only','No suitable installer']]){d.defaultView.showUpdateResult({...newerUpdate,status});assert.match(d.querySelector('#updateDialogContent').textContent,new RegExp(title))}
+});
+test('cancelling the manual update dialog does not cancel file jobs or replace a later About view',async t=>{
+ let finish;const {d,events,calls}=await boot(t,{get_update_status:()=>updateSnapshot(false),check_for_updates:()=>new Promise(resolve=>finish=resolve)});
+ events['check-for-updates']();await tick();d.querySelector('#closeUpdateDialog').click();events['show-about']();finish(newerUpdate);await tick();
+ assert.match(d.querySelector('#updateDialogContent').textContent,/About SARGE Desktop/);assert.match(d.querySelector('#updateDialogContent').textContent,/fixture-revision/);assert.ok(!calls.some(c=>c.command==='cancel_jobs'));
+});
+
+test('update dialog controls exist before scripts execute in the real document',()=>{
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+ assert.ok(html.indexOf('id="closeUpdateDialog"')<html.indexOf('<script src="updates.js"'));
 });

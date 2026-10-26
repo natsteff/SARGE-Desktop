@@ -7,6 +7,7 @@ mod model;
 mod previews;
 #[cfg(test)]
 mod tests;
+mod updates;
 mod video;
 mod volumes;
 use model::{Result, Source};
@@ -619,6 +620,28 @@ async fn backup_catalog(
     .await
     .map_err(|e| e.to_string())?
 }
+#[tauri::command]
+fn get_update_status(rt: tauri::State<Runtime>) -> Result<updates::Status> {
+    Ok(updates::status(&model::connection(&rt.db)?))
+}
+#[tauri::command]
+fn set_update_automatic(rt: tauri::State<Runtime>, enabled: bool) -> Result<()> {
+    updates::set_automatic(&model::connection(&rt.db)?, enabled)
+}
+#[tauri::command]
+fn dismiss_update(rt: tauri::State<Runtime>, key: String) -> Result<()> {
+    updates::dismiss(&model::connection(&rt.db)?, &key)
+}
+#[tauri::command]
+async fn check_for_updates(service: tauri::State<'_, Arc<updates::Service>>, manual: bool) -> Result<updates::Outcome> {
+    let service = service.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || service.check(manual)).await.map_err(|_| "The update check could not finish.".to_owned())?
+}
+#[tauri::command]
+async fn open_update_release(url: String) -> Result<()> {
+    if !updates::validate_release_url(&url) { return Err("Only official SARGE Desktop release pages can be opened.".into()); }
+    tauri::async_runtime::spawn_blocking(move || open::that(url).map_err(|_| "Could not open the release page in your browser.".to_owned())).await.map_err(|_| "Could not open the release page.".to_owned())?
+}
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -633,20 +656,26 @@ pub fn run() {
                 .accelerator("CmdOrCtrl+,")
                 .build(app)?;
             let application = SubmenuBuilder::new(app, "SARGE Desktop")
-                .item(&settings).separator().quit().build()?;
+                .text("about-sarge", "About SARGE Desktop").item(&settings).separator().quit().build()?;
             let edit = SubmenuBuilder::new(app, "Edit")
                 .undo().redo().separator().cut().copy().paste().select_all().build()?;
-            app.set_menu(MenuBuilder::new(app).item(&application).item(&edit).build()?)?;
+            let help = SubmenuBuilder::new(app, "Help")
+                .text("check-updates", "Check for Updates…").build()?;
+            app.set_menu(MenuBuilder::new(app).item(&application).item(&edit).item(&help).build()?)?;
             app.on_menu_event(|app, event| {
-                if event.id().as_ref() == "settings" {
-                    use tauri::Emitter;
-                    let _ = app.emit("open-settings", ());
+                use tauri::Emitter;
+                match event.id().as_ref() {
+                    "settings" => { let _ = app.emit("open-settings", ()); }
+                    "check-updates" => { let _ = app.emit("check-for-updates", ()); }
+                    "about-sarge" => { let _ = app.emit("show-about", ()); }
+                    _ => {}
                 }
             });
             let directory = app.path().app_data_dir()?;
             std::fs::create_dir_all(&directory)?;
             let db = directory.join("catalog.sqlite3");
             model::init(&db).map_err(std::io::Error::other)?;
+            app.manage(Arc::new(updates::Service::new(db.clone())));
             app.manage(Runtime {
                 db,
                 busy: Arc::new(AtomicBool::new(false)),
@@ -655,6 +684,11 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_update_status,
+            set_update_automatic,
+            dismiss_update,
+            check_for_updates,
+            open_update_release,
             get_state,
             pick_folder,
             list_volumes,

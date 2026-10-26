@@ -40,6 +40,8 @@ If **Microsoft Defender Antivirus reports a named threat**, don’t assume it is
 - Monitor bulk scan/copy operations as one activity block with aggregate progress and expandable location results.
 - Back up the catalog, cached previews and preferences in one archive with restore instructions.
 
+Beta.8 adds manual **Help → Check for Updates…** and a saved, default-enabled startup check at most once per 24 hours. It contacts GitHub without sending catalog contents, filenames or paths, and can be disabled in Settings. Installation remains manual. See [update-check behavior and review plan](docs/UPDATE-CHECKS.md).
+
 ## Appearance and screenshots
 
 Open **Settings → Appearance** using the sidebar gear or **SARGE Desktop → Settings…** in the application menu to switch between **SARGE · Default**, with light backgrounds and olive accents, and **Solly’s Soldiers · Dark**, with white text and red, blue and green accents. The logo changes with the theme. Your choice is remembered on this computer.
