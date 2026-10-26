@@ -5,7 +5,9 @@
 **Scole’s Archive of RAWs, Galleries & Exports**  
 *Reporting for photo duty*
 
-[**Download Windows Beta 0.3.0-beta.6**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.6) · [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
+[**Download Windows Beta 0.3.0-beta.7**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.7) — Adds Copy Videos ONLY to Drives & locations, removes the duplicate drive-add shortcut, and improves copy-dialog layout.
+
+[All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
 
 SARGE’s main purpose is to **inventory photos and videos across multiple drives**, including USB and external drives that are currently disconnected. It tracks individual media files along with counts and storage sizes across your collection, even when a registered drive is offline. For photos, SARGE can **match RAW originals with their edited/exported images** using configurable file-format pairs; **Canon CR2 to JPG is just a default example**, not a limitation. Multiple RAW and export formats can be configured to suit different cameras and workflows. Copy matched RAWs and exports—or unmatched files—to selected destinations to support storage management. Copies are verified; SARGE does not delete your originals or reclaim space automatically.
 
