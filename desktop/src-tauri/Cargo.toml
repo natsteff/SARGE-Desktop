@@ -1,6 +1,6 @@
 [package]
 name = "sarge-desktop"
-version = "0.3.0-beta.6"
+version = "0.3.0-beta.7"
 description = "SARGE native photo inventory"
 authors = ["natsteff"]
 license = "AGPL-3.0-only"
