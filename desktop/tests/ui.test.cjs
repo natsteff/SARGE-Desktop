@@ -185,3 +185,23 @@ test('settings preserve drafts on backend errors and reflect busy job restrictio
  d.querySelector('#saveMediaFormats').click();await tick();assert.match(d.querySelector('#formatsError').textContent,/Test save failure/);assert.ok(d.querySelector('#matchingRaw'));
  d.querySelector('[data-settings-section="previews"]').click();busy=true;await w.refresh();assert.equal(d.querySelector('#savePreviews').disabled,true);assert.equal(d.querySelector('#generatePreviews').disabled,true);
 });
+
+test('Drives video-only action skips offline sources only after confirmation and reviews before copying',async t=>{
+ const offline={...source,id:'offline',name:'Offline USB',online:false};
+ const {d,calls}=await boot(t,{get_state:()=>({sources:[source,offline],files:[videoFile()],jobs:[],busy:false})});
+ assert.equal(d.querySelector('[data-command="attachedDrives"]'),null);
+ d.querySelector('[data-view="drives"]').click();
+ const action=d.querySelector('#copyVideosButton');assert.equal(action.textContent,'Copy Videos ONLY');assert.equal(action.disabled,false);action.click();
+ assert.match(d.querySelector('#dialogContent').textContent,/Offline USB/);assert.equal(d.querySelector('#videoDestination'),null);
+ d.querySelector('#continueAvailable').click();assert.equal(d.querySelectorAll('[name="videoSource"]').length,1);
+ d.querySelector('#videoDestination').value='D:\\videos';d.querySelector('#reviewVideoCopy').click();
+ assert.ok(!calls.some(c=>c.command==='start_jobs'));d.querySelector('#confirmVideoCopy').click();await tick();
+ const request=calls.find(c=>c.command==='start_jobs').args.request;
+ assert.equal(request.mode,'copy-videos');assert.deepEqual([...request.source_ids],['s']);assert.equal(request.confirmed_video_copy,true);
+});
+test('Drives video-only action is disabled while busy or without online sources',async t=>{
+ let snapshot={sources:[source],files:[],jobs:[],busy:true};
+ const {w,d}=await boot(t,{get_state:()=>snapshot});assert.equal(d.querySelector('#copyVideosButton').disabled,true);
+ snapshot={...snapshot,busy:false,sources:[{...source,online:false}]};await w.refresh();assert.equal(d.querySelector('#copyVideosButton').disabled,true);
+ snapshot={...snapshot,sources:[source]};await w.refresh();assert.equal(d.querySelector('#copyVideosButton').disabled,false);
+});

@@ -10,7 +10,7 @@ This beta targets Windows 10/11 x64 and installs for the current user. No Docker
 
 ## First scan and copy
 
-1. Open **SARGE Desktop**. Choose **Add drive / folder**, then use the native picker for a drive root or any accessible folder. **Drives & locations → Choose attached drive** lists connected volumes.
+1. Open **SARGE Desktop**. Choose **Add drive / folder**, then use the native picker for a drive root or any accessible folder. This is the single entry point for adding either a folder or an entire drive.
 2. Review source nickname, physical drive name, description, and folder date. Volume label, ID, and letter are detected on Windows. Save the source.
 3. Choose **Scan / copy** on its card:
    - **Scan only**: index CR2 originals and JPG/JPEG/PNG exports recursively.
@@ -18,6 +18,8 @@ This beta targets Windows 10/11 x64 and installs for the current user. No Docker
    - **Copy only**: copy using the last completed inventory of this source. A failed/partial/cancelled new scan invalidates copy eligibility until a complete scan succeeds.
 4. For either copy mode, pick either or both existing **matched** and **unmatched** destination folders outside every selected source. At least one is required. When one is empty, confirm that its category will be intentionally omitted. The chosen folders must not overlap each other or any selected source. **Copy All Attached Drives** offers Copy only or Scan and copy across registered available sources; offline and removed sources are excluded. Each source gets its own name-and-ID subfolder under each chosen destination. In a bulk scan-and-copy batch all scans finish before copying starts. Renaming a source changes its destination subfolder name for subsequent bulk jobs.
 5. Check **Scan activity** for counts, cancellation, completed copies, identical files, skips, and errors.
+
+For videos without images, use **Drives & locations → Copy Videos ONLY** (also available in **Settings → Catalog & tools**). Choose available sources and a destination, then review before confirming. Each selected source needs a completed scan. To include videos alongside the normal image-copy workflow, choose an unmatched destination and select **Include videos in the unmatched destination**.
 
 Copies preserve the selected source's relative directory hierarchy. Matched RAWs and their confirmed exports go to the matched destination. Files without relationships go to the unmatched destination. Ambiguous and suggested relationships are skipped for review. Confirmed relationships spanning selected sources are supported in bulk copying; relationships to unselected sources are skipped. Intentionally omitted category counts are separate from errors/skips. Copies check source size/mtime against the scan, verify SHA-256, and never overwrite a different existing file. An identical destination counts as already present. Completed copies remain when a job is cancelled. Empty temporary files may remain after a process/OS crash; originals are never deleted.
 

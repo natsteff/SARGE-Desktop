@@ -64,3 +64,9 @@ aside>*{flex-shrink:0}aside>button[data-command]{margin-top:8px}aside footer{pad
 .settings-action{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 0;border-top:1px solid var(--line)}
 .settings-action button{flex-shrink:0}.settings-action p{margin:0}.settings-panel [role="alert"]{color:var(--red)}
 @media(max-width:1000px){.settings-panel{padding:20px}.settings-action{align-items:flex-start;flex-direction:column;gap:12px}}
+
+/* Separate the source summary from the operation, and keep video opt-in inline. */
+.selected-sources{margin-bottom:18px}
+#destinations label.check-label{display:flex;align-items:center;gap:10px;margin:4px 0 0}
+#destinations .check-label input[type="checkbox"]{flex:0 0 auto;width:auto;margin:0}
+#videoDestinationHint{color:var(--muted);line-height:1.5}
