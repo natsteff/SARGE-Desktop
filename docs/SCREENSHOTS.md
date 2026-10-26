@@ -6,6 +6,8 @@ Nine real Windows **0.3.0-beta.6** captures from October 24, 2026 are published 
 
 ## Scope for the next refresh
 
+Publish the Windows build first so Nate can install it on his PC. During release preparation, ask only whether to evaluate screenshot needs and update this capture plan, with a recommendation based on UI changes. Neither that decision nor new screenshots blocks publication. Capture, review and README image updates happen separately after publication and Windows testing.
+
 Capture only views that need replacement because their UI or content changed. Do not automatically recapture every view for every release. Confirm the requested list with Nate before capture; stop after the agreed list is complete.
 
 | Public PNG | One intended view |
