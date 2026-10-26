@@ -5,7 +5,7 @@
 **Scole’s Archive of RAWs, Galleries & Exports**  
 *Reporting for photo duty*
 
-[**Download Windows Beta 0.3.0-beta.7**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.7) — Adds Copy Videos ONLY to Drives & locations, removes the duplicate drive-add shortcut, and improves copy-dialog layout.
+[**Download Windows Beta 0.3.0-beta.8**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.8) — Adds manual and optional startup update checks, consistent version/build information, and official release links for manual installation.
 
 [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
 

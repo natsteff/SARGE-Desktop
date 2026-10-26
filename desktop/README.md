@@ -1,10 +1,10 @@
-# SARGE Desktop — Windows Beta 0.3.0-beta.7
+# SARGE Desktop — Windows Beta 0.3.0-beta.8
 
 Windows-focused native desktop edition. macOS remains a bonus development target. The earlier Docker project is retained separately and is no longer the development focus.
 
 ## Windows test build
 
-Prefer the installer on the [Windows desktop beta release](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.7). For development builds, download the **SARGE-Windows-x64-Beta** artifact from the latest successful **Build SARGE Desktop** GitHub Actions run on this branch. Extract the artifact ZIP and run the `SARGE Desktop_*_x64-setup.exe` installer. GitHub Actions artifact downloads require signing into GitHub. An unsigned prerelease installer may also be attached to GitHub Releases.
+Prefer the installer on the [Windows desktop beta release](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.8). For development builds, download the **SARGE-Windows-x64-Beta** artifact from the latest successful **Build SARGE Desktop** GitHub Actions run on this branch. Extract the artifact ZIP and run the `SARGE Desktop_*_x64-setup.exe` installer. GitHub Actions artifact downloads require signing into GitHub. An unsigned prerelease installer may also be attached to GitHub Releases.
 
 This beta targets Windows 10/11 x64 and installs for the current user. No Docker, Python, Tcl/Tk, PowerShell scanner, or ExifTool installation is required. The installer uses Microsoft's WebView2 bootstrapper if the runtime is absent; that step may require an internet connection. Inventory and copying work offline afterward. The optional update checker described below contacts GitHub. Installer downloads are unsigned during this beta, so Windows may warn or apply organizational restrictions.
 
