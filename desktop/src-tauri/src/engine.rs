@@ -538,12 +538,29 @@ pub fn copy_file(
     {
         return Err("Source changed during copy; copy discarded".into());
     }
+    let copied = temp
+        .persist_noclobber(&target)
+        .map_err(|e| format!("Destination conflict: {}", e.error))?;
+    // tempfile's Windows persist operation normalizes attributes. Set and verify
+    // the selection flag on the finalized destination handle, never the source.
     #[cfg(windows)]
     if crate::importance::important(&file.metadata) && before.permissions().readonly() {
-        fs::set_permissions(temp.path(), before.permissions()).map_err(|e| e.to_string())?;
+        copied.set_permissions(before.permissions()).map_err(|e| {
+            format!("Copy exists but read-only importance could not be preserved: {e}")
+        })?;
+        if !copied
+            .metadata()
+            .map_err(|e| e.to_string())?
+            .permissions()
+            .readonly()
+        {
+            return Err(
+                "Copy exists but its read-only importance flag could not be verified".into(),
+            );
+        }
     }
-    temp.persist_noclobber(&target)
-        .map_err(|e| format!("Destination conflict: {}", e.error))?;
+    #[cfg(not(windows))]
+    let _ = copied;
     Ok(true)
 }
 #[cfg(test)]
