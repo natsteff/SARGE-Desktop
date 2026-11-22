@@ -195,7 +195,7 @@ fn inspect_cached(
     if crate::formats::extension(&path.to_string_lossy()) != "cr2" {
         return Value::Null;
     }
-    let canonical_base=fs::canonicalize(base).unwrap_or_else(|_|base.to_path_buf());
+    let canonical_base = fs::canonicalize(base).unwrap_or_else(|_| base.to_path_buf());
     let mut values = Vec::new();
     let mut warnings = Vec::<String>::new();
     let mut companions = Vec::new();
@@ -292,7 +292,7 @@ fn inspect_cached(
         }
     }
     companions.sort_by_key(|v| v["path"].as_str().unwrap_or("").to_string());
-    values.sort_by_key(|v|v.to_string());
+    values.sort_by_key(|v| v.to_string());
     warnings.sort();
     let positive = values.iter().any(|v| v["value"] == true);
     let conflict = values

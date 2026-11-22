@@ -1121,3 +1121,38 @@ fn important_raw_routes_without_export_and_preserves_sidecar_and_matching() {
             .important
     );
 }
+
+#[cfg(windows)]
+#[test]
+fn important_filesystem_lock_survives_verified_copy() {
+    let (dir, db, source) = setup();
+    let root = Path::new(&source.path);
+    let raw = root.join("1DX_1.cr2");
+    fs::write(&raw, b"locked fixture").unwrap();
+    let mut ro = fs::metadata(&raw).unwrap().permissions();
+    ro.set_readonly(true);
+    fs::set_permissions(&raw, ro).unwrap();
+    let mut c = model::connection(&db).unwrap();
+    let cancel = AtomicBool::new(false);
+    engine::scan(&mut c, &source, "job", &cancel).unwrap();
+    let source = model::sources(&c).unwrap().remove(0);
+    let dest = dir.path().join("selected");
+    fs::create_dir(&dest).unwrap();
+    assert!(
+        engine::copy(&c, &source, "job", dest.to_str().unwrap(), "", &cancel)
+            .unwrap()
+            .is_empty()
+    );
+    let copied = dest.join("1DX_1.cr2");
+    assert!(fs::metadata(&copied).unwrap().permissions().readonly());
+    assert_eq!(fs::read(&copied).unwrap(), fs::read(&raw).unwrap());
+    let mut rw = fs::metadata(&copied).unwrap().permissions();
+    rw.set_readonly(false);
+    fs::set_permissions(&copied, rw.clone()).unwrap();
+    assert!(
+        !engine::copy(&c, &source, "job", dest.to_str().unwrap(), "", &cancel)
+            .unwrap()
+            .is_empty()
+    );
+    fs::set_permissions(&raw, rw).unwrap();
+}

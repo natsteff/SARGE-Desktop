@@ -502,6 +502,16 @@ pub fn copy_file(
             return Err("Destination file escapes through a link".into());
         }
         if digest(&target, cancel)? == source_hash {
+            #[cfg(windows)]
+            if crate::importance::important(&file.metadata)
+                && before.permissions().readonly()
+                && !fs::metadata(&target)
+                    .map_err(|e| e.to_string())?
+                    .permissions()
+                    .readonly()
+            {
+                return Err("Identical destination lacks the source read-only lock; choose another destination to preserve importance".into());
+            }
             return Ok(false);
         }
         return Err("Different destination file exists; not overwritten".into());
@@ -527,6 +537,10 @@ pub fn copy_file(
         || digest(&source, cancel)? != source_hash
     {
         return Err("Source changed during copy; copy discarded".into());
+    }
+    #[cfg(windows)]
+    if crate::importance::important(&file.metadata) && before.permissions().readonly() {
+        fs::set_permissions(temp.path(), before.permissions()).map_err(|e| e.to_string())?;
     }
     temp.persist_noclobber(&target)
         .map_err(|e| format!("Destination conflict: {}", e.error))?;
