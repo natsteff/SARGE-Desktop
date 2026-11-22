@@ -3073,6 +3073,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "roxmltree"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
+
+[[package]]
 name = "rusqlite"
 version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3140,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "sarge-desktop"
-version = "0.3.0-beta.8"
+version = "0.3.0-beta.9"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -3149,6 +3155,7 @@ dependencies = [
  "open",
  "regex",
  "reqwest",
+ "roxmltree",
  "rusqlite",
  "semver",
  "serde",

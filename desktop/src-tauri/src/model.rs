@@ -136,6 +136,7 @@ pub struct Photo {
     pub present: bool,
     pub source_name: String,
     pub matched: bool,
+    pub important: bool,
     pub matchable: bool,
     pub suggested: bool,
     pub preview: bool,
@@ -162,6 +163,7 @@ pub fn photos(c: &Connection) -> Result<Vec<Photo>> {
                 present: r.get(13)?,
                 source_name: r.get(14)?,
                 matched: r.get(15)?,
+                important: false,
                 matchable: false,
                 suggested: r.get(16)?,
                 preview: r.get(17)?,
@@ -179,6 +181,7 @@ pub fn photos(c: &Connection) -> Result<Vec<Photo>> {
         .map(|f| (f.id, (f.name.clone(), f.present)))
         .collect();
     for f in &mut files {
+        f.important = crate::importance::important(&f.metadata);
         f.matchable = f.kind != "video" && policy.matchable(&f.name);
         f.matched = false;
         f.suggested = false;

@@ -1070,3 +1070,54 @@ fn movie_metadata_seeks_past_large_media_payload_and_rotates_portrait_dimensions
     assert_eq!(m["ImageLength"], 1920);
     assert_eq!(m["DurationSeconds"], 10.0);
 }
+
+#[test]
+fn important_raw_routes_without_export_and_preserves_sidecar_and_matching() {
+    let (dir, db, source) = setup();
+    let root = Path::new(&source.path);
+    fs::write(root.join("1DX_1.cr2"), b"raw fixture").unwrap();
+    fs::write(root.join("1DX_2.cr2"), b"ordinary raw fixture").unwrap();
+    fs::write(
+        root.join("1DX_1.xmp"),
+        br#"<r xmlns:p="http://ns.camerabits.com/photomechanic/1.0/" p:Tagged="True"/>"#,
+    )
+    .unwrap();
+    let mut c = model::connection(&db).unwrap();
+    let cancel = AtomicBool::new(false);
+    engine::scan(&mut c, &source, "job", &cancel).unwrap();
+    let files = model::photos(&c).unwrap();
+    let raw = files.iter().find(|f| f.name == "1DX_1.cr2").unwrap();
+    assert!(raw.important);
+    assert!(!raw.matched);
+    let source = model::sources(&c).unwrap().remove(0);
+    let dest = dir.path().join("selected");
+    fs::create_dir(&dest).unwrap();
+    assert!(
+        engine::copy(&c, &source, "job", dest.to_str().unwrap(), "", &cancel)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(fs::read(dest.join("1DX_1.cr2")).unwrap(), b"raw fixture");
+    assert!(dest.join("1DX_1.xmp").exists());
+    assert!(!dest.join("1DX_2.cr2").exists());
+    assert!(root.join("1DX_1.cr2").exists());
+    fs::write(
+        root.join("1DX_1.xmp"),
+        br#"<r xmlns:p="http://ns.camerabits.com/photomechanic/1.0/" p:Tagged="False"/>"#,
+    )
+    .unwrap();
+    assert!(
+        !engine::copy(&c, &source, "job", dest.to_str().unwrap(), "", &cancel)
+            .unwrap()
+            .is_empty()
+    );
+    engine::scan(&mut c, &source, "job", &cancel).unwrap();
+    assert!(
+        !model::photos(&c)
+            .unwrap()
+            .iter()
+            .find(|f| f.name == "1DX_1.cr2")
+            .unwrap()
+            .important
+    );
+}

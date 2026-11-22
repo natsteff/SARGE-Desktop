@@ -117,7 +117,7 @@ test('date ranges, numeric EXIF precision and invalid ranges are handled explici
 function videoFile(id=1){return {...photo(id,{DurationSeconds:125.5,ImageWidth:1920,ImageLength:1080}),name:`clip${id}.mp4`,path:`clips/clip${id}.mp4`,kind:'video',matched:false,matchable:false}}
 test('video-only catalogs show totals, metadata and independent open actions without thumbnails or matches',async t=>{
  const f=videoFile(),snapshot={sources:[source],files:[f],jobs:[],inventory_columns:'["duration","dimensions"]'};const {d,w,calls}=await boot(t,{get_state:()=>snapshot,open_photo:()=>null,reveal_photo:()=>null});
- assert.equal(d.querySelector('#heading').textContent,'Media Inventory');assert.equal(d.querySelector('#kind').value,'');assert.equal(d.querySelectorAll('#metrics .metric').length,5);assert.match(d.querySelector('#metrics .video-focus').textContent,/Videos1/);assert.match(d.querySelector('#files').textContent,/Not applicable/);assert.match(d.querySelector('#files').textContent,/2:05.5/);assert.match(d.querySelector('#files').textContent,/1920 × 1080/);assert.equal(d.querySelectorAll('.photo-preview img').length,0);
+ assert.equal(d.querySelector('#heading').textContent,'Media Inventory');assert.equal(d.querySelector('#kind').value,'');assert.equal(d.querySelectorAll('#metrics .metric').length,6);assert.match(d.querySelector('#metrics .video-focus').textContent,/Videos1/);assert.match(d.querySelector('#files').textContent,/Not applicable/);assert.match(d.querySelector('#files').textContent,/2:05.5/);assert.match(d.querySelector('#files').textContent,/1920 × 1080/);assert.equal(d.querySelectorAll('.photo-preview img').length,0);
  d.querySelector('.video-icon').click();d.querySelector('[data-reveal]').click();await tick();assert.ok(calls.some(c=>c.command==='open_photo'));assert.ok(calls.some(c=>c.command==='reveal_photo'));d.querySelector('[data-detail]').click();assert.match(d.querySelector('#dialogContent').textContent,/Video · Matching not applicable/);assert.equal(d.querySelector('#manual'),null);d.querySelector('#dialog').close();
  d.querySelector('#status').value='unmatched';d.querySelector('#status').dispatchEvent(new w.Event('change'));assert.equal(rowIds(d).length,0);d.querySelector('#status').value='';d.querySelector('#status').dispatchEvent(new w.Event('change'));assert.equal(rowIds(d).length,1);
  snapshot.sources=[{...source,online:false}];await w.refresh();assert.equal(d.querySelector('.video-icon').disabled,true);assert.equal(d.querySelector('[data-reveal]').disabled,true);assert.match(d.querySelector('#files').textContent,/2:05.5/);
@@ -249,4 +249,13 @@ test('cancelling the manual update dialog does not cancel file jobs or replace a
 test('update dialog controls exist before scripts execute in the real document',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  assert.ok(html.indexOf('id="closeUpdateDialog"')<html.indexOf('<script src="updates.js"'));
+});
+
+test('Important RAW classification is independent, filterable and explained before copy',async t=>{
+ const files=[{id:1,source_id:'s',name:'1DX_1.cr2',path:'1DX_1.cr2',kind:'raw',size:12,present:true,matchable:true,matched:false,important:true,metadata:JSON.stringify({SargeImportance:{evidence:[{source:'sidecar 1DX_1.xmp',field:'PhotoMechanic Tagged',value:true}],warnings:[]}})},{id:2,source_id:'s',name:'1DX_2.cr2',path:'1DX_2.cr2',kind:'raw',size:12,present:true,matched:false,important:false}];
+ const {w,d}=await boot(t,{get_state:()=>({sources:[source],files,jobs:[],busy:false})});
+ assert.match(d.querySelector('#metrics').textContent,/Important RAWs/);assert.match(d.querySelector('#files').textContent,/Important RAW/);
+ const status=d.querySelector('#status');status.value='important';status.dispatchEvent(new w.Event('change'));assert.match(d.querySelector('#files').textContent,/1DX_1/);assert.doesNotMatch(d.querySelector('#files').textContent,/1DX_2/);
+ status.value='tagged';status.dispatchEvent(new w.Event('change'));assert.match(d.querySelector('#files').textContent,/1DX_1/);
+ d.querySelector('[data-job]').click();assert.match(d.querySelector('#dialogContent').textContent,/Matched \/ Important RAWs/);
 });

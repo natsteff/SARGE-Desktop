@@ -1,6 +1,7 @@
 mod backup;
 mod engine;
 mod formats;
+mod importance;
 mod jobs;
 mod mappings;
 mod model;
@@ -372,7 +373,7 @@ async fn export_csv(app: tauri::AppHandle, rt: tauri::State<'_, Runtime>) -> Res
         let path = target.into_path().map_err(|e| e.to_string())?;
         let c = model::connection(&db)?;
         let mut output =
-            "Source,Relative path,Type,Bytes,Folder date,Camera prefix,Matched,Present,Match status,Duration seconds,Width,Height\r\n"
+            "Source,Relative path,Type,Bytes,Folder date,Camera prefix,Matched,Present,Match status,Duration seconds,Width,Height,Important RAW,Importance evidence\r\n"
                 .to_string();
         fn cell(s: &str) -> String {
             let s = if s.starts_with(['=', '+', '-', '@']) {
@@ -386,7 +387,7 @@ async fn export_csv(app: tauri::AppHandle, rt: tauri::State<'_, Runtime>) -> Res
             let meta:Value=serde_json::from_str(&f.metadata).unwrap_or_else(|_|json!({}));
             let status=if f.kind=="video"{"Not applicable"}else if !f.matchable{"Not configured"}else if f.matched{"Matched"}else if f.suggested{"Review"}else{"Unmatched"};
             output.push_str(&format!(
-                "{},{},{},{},{},{},{},{},{},{},{},{}\r\n",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{}\r\n",
                 cell(&f.source_name),
                 cell(&f.path),
                 cell(&f.kind),
@@ -394,7 +395,7 @@ async fn export_csv(app: tauri::AppHandle, rt: tauri::State<'_, Runtime>) -> Res
                 cell(&f.date),
                 cell(&f.camera_prefix),
                 f.matched,
-                f.present,cell(status),cell(&meta["DurationSeconds"].as_f64().map(|n|n.to_string()).unwrap_or_default()),cell(&meta["ImageWidth"].as_u64().map(|n|n.to_string()).unwrap_or_default()),cell(&meta["ImageLength"].as_u64().map(|n|n.to_string()).unwrap_or_default())
+                f.present,cell(status),cell(&meta["DurationSeconds"].as_f64().map(|n|n.to_string()).unwrap_or_default()),cell(&meta["ImageWidth"].as_u64().map(|n|n.to_string()).unwrap_or_default()),cell(&meta["ImageLength"].as_u64().map(|n|n.to_string()).unwrap_or_default()),f.important,cell(&meta["SargeImportance"].to_string())
             ));
         }
         std::fs::write(path, output).map_err(|e| e.to_string())?;

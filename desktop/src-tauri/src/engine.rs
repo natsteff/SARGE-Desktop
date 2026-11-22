@@ -239,6 +239,7 @@ pub fn scan(
     let root = base.file_name().unwrap_or_default().to_string_lossy();
     let mut count = 0;
     let mut errors = Vec::new();
+    let mut importance_inspector = crate::importance::Inspector::default();
     for entry in walkdir::WalkDir::new(&base).follow_links(false) {
         if cancel.load(Ordering::Relaxed) {
             return Err("Cancelled; unseen records were retained.".into());
@@ -294,13 +295,19 @@ pub fn scan(
                 |r| r.get(0),
             )
             .ok();
-        let meta = known
+        let mut meta = known
             .filter(|v| {
                 serde_json::from_str::<serde_json::Value>(v)
                     .ok()
                     .is_some_and(|v| v["SargeMetadataVersion"] == 4)
             })
             .unwrap_or_else(|| metadata(p));
+        if ext == "cr2" {
+            let mut v: serde_json::Value =
+                serde_json::from_str(&meta).unwrap_or_else(|_| serde_json::json!({}));
+            v["SargeImportance"] = importance_inspector.inspect(&base, p);
+            meta = v.to_string();
+        }
         c.execute("INSERT INTO files(source_id,path,name,stem,kind,size,mtime,date,session,camera_prefix,image_number,metadata,present,seen) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?) ON CONFLICT(source_id,path) DO UPDATE SET size=excluded.size,mtime=excluded.mtime,date=excluded.date,session=excluded.session,camera_prefix=excluded.camera_prefix,image_number=excluded.image_number,metadata=excluded.metadata,present=1,seen=excluded.seen",params![source.id,rel,name,stem,kind,info.len() as i64,modified,date,session,camera,number,meta,job]).map_err(|e|e.to_string())?;
         c.execute(
             "UPDATE files SET mapped=? WHERE source_id=? AND path=?",
@@ -604,7 +611,8 @@ pub fn copy_media_from_sources(
         if cancel.load(Ordering::Relaxed) {
             return Err("Cancelled; completed copies remain in place.".into());
         }
-        if file.kind != "video" && !policy.matchable(&file.name) {
+        let important = crate::importance::important(&file.metadata);
+        if file.kind != "video" && !policy.matchable(&file.name) && !important {
             omitted += 1;
             c.execute(
                 "UPDATE jobs SET omitted=? WHERE id=?",
@@ -634,15 +642,16 @@ pub fn copy_media_from_sources(
                     .is_some_and(|(r, e)| policy.pair(&r.name, &e.name))
             })
             .collect();
-        let unsafe_link = links.iter().any(|(r, e, status)| {
-            status != "confirmed"
-                || [r, e].iter().any(|id| {
-                    by_id
-                        .get(id)
-                        .is_none_or(|p| !p.present || !allowed_sources.contains(&p.source_id))
-                })
-        });
-        let destination = if links.is_empty() {
+        let unsafe_link = !important
+            && links.iter().any(|(r, e, status)| {
+                status != "confirmed"
+                    || [r, e].iter().any(|id| {
+                        by_id
+                            .get(id)
+                            .is_none_or(|p| !p.present || !allowed_sources.contains(&p.source_id))
+                    })
+            });
+        let destination = if links.is_empty() && !important {
             u.as_ref()
         } else {
             m.as_ref()
@@ -656,12 +665,45 @@ pub fn copy_media_from_sources(
                 file.path
             ));
         } else {
-            match copy_file(&base, destination.unwrap(), file, cancel) {
-                Ok(true) => copied += 1,
-                Ok(false) => identical += 1,
-                Err(e) => {
-                    skipped += 1;
-                    errors.push(format!("{}: {e}", file.path));
+            // Important evidence and sidecar identities must still match the reviewed scan.
+            let saved: serde_json::Value = serde_json::from_str(&file.metadata).unwrap_or_default();
+            if important
+                && crate::importance::inspect(&base, &base.join(&file.path))
+                    != saved["SargeImportance"]
+            {
+                skipped += 1;
+                errors.push(format!(
+                    "{}: importance evidence changed; rescan first",
+                    file.path
+                ));
+            } else {
+                match copy_file(&base, destination.unwrap(), file, cancel) {
+                    Ok(true) => copied += 1,
+                    Ok(false) => identical += 1,
+                    Err(e) => {
+                        skipped += 1;
+                        errors.push(format!("{}: {e}", file.path));
+                    }
+                }
+                if important {
+                    for sidecar in saved["SargeImportance"]["companions"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                    {
+                        let mut companion = file.clone();
+                        companion.path = sidecar["path"].as_str().unwrap_or("").into();
+                        companion.size = sidecar["size"].as_i64().unwrap_or(-1);
+                        companion.mtime = sidecar["mtime"].as_str().unwrap_or("").into();
+                        match copy_file(&base, destination.unwrap(), &companion, cancel) {
+                            Ok(true) => copied += 1,
+                            Ok(false) => identical += 1,
+                            Err(e) => {
+                                skipped += 1;
+                                errors.push(format!("{}: companion: {e}", companion.path));
+                            }
+                        }
+                    }
                 }
             }
         }
