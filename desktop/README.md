@@ -13,19 +13,48 @@ This beta targets Windows 10/11 x64 and installs for the current user. No Docker
 1. Open **SARGE Desktop**. Choose **Add drive / folder**, then use the native picker for a drive root or any accessible folder. This is the single entry point for adding either a folder or an entire drive.
 2. Review source nickname, physical drive name, description, and folder date. Volume label, ID, and letter are detected on Windows. Save the source.
 3. Choose **Scan / copy** on its card:
-   - **Scan only**: index CR2 originals and JPG/JPEG/PNG exports recursively.
+   - **Scan only**: index enabled photo and video formats recursively and collect Important RAW evidence for CR2s. CR2 → JPG/JPEG/PNG is the default RAW/export matching rule; inventory formats and match rules are configurable in Settings.
    - **Scan and copy**: scan, match, then immediately copy within this job.
    - **Copy only**: copy using the last completed inventory of this source. A failed/partial/cancelled new scan invalidates copy eligibility until a complete scan succeeds.
-4. For either copy mode, pick either or both existing **matched** and **unmatched** destination folders outside every selected source. At least one is required. When one is empty, confirm that its category will be intentionally omitted. The chosen folders must not overlap each other or any selected source. **Copy All Attached Drives** offers Copy only or Scan and copy across registered available sources; offline and removed sources are excluded. Each source gets its own name-and-ID subfolder under each chosen destination. In a bulk scan-and-copy batch all scans finish before copying starts. Renaming a source changes its destination subfolder name for subsequent bulk jobs.
+4. For either copy mode, pick either or both existing **Matched / Important RAWs and exports** and **Unmatched RAWs and exports** destination folders outside every selected source. At least one is required. When one is empty, confirm that its category will be intentionally omitted. The chosen folders must not overlap each other or any selected source. **Copy All Attached Drives** offers Copy only or Scan and copy across registered available sources; offline and removed sources are excluded. Each source gets its own name-and-ID subfolder under each chosen destination. In a bulk scan-and-copy batch all scans finish before copying starts. Renaming a source changes its destination subfolder name for subsequent bulk jobs.
 5. Check **Scan activity** for counts, cancellation, completed copies, identical files, skips, and errors.
 
 For videos without images, use **Drives & locations → Copy Videos ONLY** (also available in **Settings → Catalog & tools**). Choose available sources and a destination, then review before confirming. Each selected source needs a completed scan. To include videos alongside the normal image-copy workflow, choose an unmatched destination and select **Include videos in the unmatched destination**.
 
-Copies preserve the selected source's relative directory hierarchy. Matched RAWs and their confirmed exports go to the matched destination. Files without relationships go to the unmatched destination. Ambiguous and suggested relationships are skipped for review. Confirmed relationships spanning selected sources are supported in bulk copying; relationships to unselected sources are skipped. Intentionally omitted category counts are separate from errors/skips. Copies check source size/mtime against the scan, verify SHA-256, and never overwrite a different existing file. An identical destination counts as already present. Completed copies remain when a job is cancelled. Empty temporary files may remain after a process/OS crash; originals are never deleted.
+Copies preserve the selected source's relative directory hierarchy. Matched RAWs and their confirmed exports go to the matched / Important destination. Important CR2s go there independently, even without a confirmed export, along with their associated XMP sidecars. Other configured files without relationships go to the unmatched destination. Important CR2s qualify independently of ambiguous or outside-source relationships; other ambiguous and suggested relationships are skipped for review. Confirmed relationships spanning selected sources are supported in bulk copying; other relationships to unselected sources are skipped. Intentionally omitted category counts are separate from errors/skips. Copies check source size/mtime against the scan, verify SHA-256, and never overwrite a different existing file. An identical destination normally counts as already present. For an Important RAW with a source read-only flag, an identical existing destination missing that flag is reported as an error rather than silently changed; choose another destination to preserve the lock. Completed copies remain when a job is cancelled. Empty temporary files may remain after a process/OS crash; originals are never deleted.
 
 Sources retain indexed details when disconnected. Reassociate a source after its drive letter/location changes; its catalog ID and manual match decisions remain. Windows volume identity checks prevent scanning a different disk that reuses the same letter. Same names/locations prompt **Update existing** or **Add as separate**. Separate overlapping registrations can count the same files twice. Remove is reversible; permanent deletion removes only catalog details after typing DELETE.
 
 The photo inventory supports search, source/type/match filters, sortable name/date/size columns, manual relationship confirmation/rejection, CSV export, and decimal MB/GB statistics. The default and Solly's Soldiers themes include their corresponding logos and persist on this computer.
+
+## Important CR2 RAWs (beta.9)
+
+Important RAW detection is included in normal scans by default for enabled **CR2** files. Other RAW formats keep their existing inventory/matching behavior. Install beta.9 and complete a rescan of each location to populate the new evidence; old catalog entries are not classified from filenames or assumed camera settings.
+
+A positive value from **either** source qualifies a CR2:
+
+- **Filesystem lock:** the Windows file's Read Only attribute. This is a per-file attribute, not a read-only drive or an access-permission error. SARGE records the observed flag without claiming that the camera originally set it.
+- **Photo Mechanic tag:** the `Tagged` or legacy `Prefs` value in supported Photo Mechanic XMP, or `Tagged` in a legacy Photo Mechanic trailer. XMP may be embedded in the CR2 or stored in sibling `basename.xmp` / `basename.cr2.xmp` files; extension/name matching is case-insensitive. Sidecars from other folders or drives are not associated by filename alone.
+
+Tagging is separate from locking, color classes and star ratings. Ratings and color classes alone do not mark a CR2 important. A positive tag or lock qualifies independently of an existing RAW/export relationship; it does not create or confirm one. Conflicting Photo Mechanic true/false values retain their evidence and are flagged in details; positive evidence still qualifies.
+
+The inventory has an **Important RAWs** count and badge, plus **Important RAWs**, **Filesystem-locked CR2s** and **Photo Mechanic tagged CR2s** filter choices. File details show recorded evidence, conflicts and warnings; CSV includes importance and evidence fields. Saved evidence remains available offline. Rescans check locks and associated sidecars even when the CR2's size and modification time have not changed.
+
+### Copying Important RAWs
+
+Choose the **Matched / Important RAWs and exports** destination in the normal Scan / copy workflow. Important CR2s use that destination even when unmatched or not configured for RAW/export matching. Leaving it empty intentionally omits them; selecting only the unmatched destination does not include Important RAWs. Existing inventory-format exclusions still apply.
+
+Associated XMP sidecars accompany an Important CR2, preserving source-relative paths. Copied/identical counts include those companions. Importance evidence and companion identities are checked again before copying; changed evidence requires a rescan. Copying retains the usual size/mtime, checksum and no-overwrite checks. On Windows, new Important RAW copies preserve and verify a source read-only flag after finalizing the destination file. An identical existing file without the required flag is reported rather than modified. Per-file or companion failures appear in Scan activity; a job can leave completed copies alongside reported failures.
+
+SARGE never changes original metadata or attributes, deletes originals or performs a source-deleting move. Associated sidecars are preserved as files; SARGE does not convert a filesystem lock into a Photo Mechanic tag.
+
+### Detection limits
+
+Native filesystem-lock interpretation is Windows-only; macOS write permissions are not treated as camera protection. A lock may have been set on a computer, while copying or ingesting can remove an original camera lock. Missing or unreadable evidence therefore leaves historical camera protection **unknown**, not proven unprotected.
+
+Embedded XMP extraction supports TIFF/CR2's primary directory XMP field; legacy Photo Mechanic trailers must be at the end of the file. XMP/trailer reads are limited to **1 MiB per block**. Unsupported, oversized or malformed evidence is reported in file details, and sidecar links escaping the source are rejected. A separate valid positive signal can still qualify a file.
+
+Automated fixtures cover the supported representations, native Windows locks, rescan changes and verified copying. Protected camera-original samples from the target Canon bodies and installed Photo Mechanic ingest/tagging workflows have not yet been validated. Keep those interoperability limits distinct from automated test results.
 
 ## Data and scope
 
@@ -99,6 +128,7 @@ The sidebar gear and **SARGE Desktop → Settings…** in the application menu o
 - **Filename conventions:** build, order and enable filename mapping rules, then save to apply them to the catalog.
 - **Photo previews:** enable stored previews, generate missing previews or clear the preview cache.
 - **Catalog & tools:** back up the catalog or review and copy videos independently of photo matching.
+- **Updates:** control optional startup update checks; manual checking remains available from Help.
 
 Unsaved drafts remain when switching Settings sections or browsing the inventory during the same app session. Use each section’s Save button to apply changes. Closing the app discards unsaved drafts. A running job temporarily disables settings that change catalog processing.
 

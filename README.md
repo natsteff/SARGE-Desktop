@@ -5,11 +5,11 @@
 **Scole’s Archive of RAWs, Galleries & Exports**  
 *Reporting for photo duty*
 
-[**Download Windows Beta 0.3.0-beta.9**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.9) — Adds manual and optional startup update checks, consistent version/build information, and official release links for manual installation.
+[**Download Windows Beta 0.3.0-beta.9**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.9) — Adds Important RAW detection for filesystem-locked or Photo Mechanic-tagged CR2s, with independent filters and verified copying of RAWs and their XMP sidecars.
 
 [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
 
-SARGE’s main purpose is to **inventory photos and videos across multiple drives**, including USB and external drives that are currently disconnected. It tracks individual media files along with counts and storage sizes across your collection, even when a registered drive is offline. For photos, SARGE can **match RAW originals with their edited/exported images** using configurable file-format pairs; **Canon CR2 to JPG is just a default example**, not a limitation. Multiple RAW and export formats can be configured to suit different cameras and workflows. Copy matched RAWs and exports—or unmatched files—to selected destinations to support storage management. Copies are verified; SARGE does not delete your originals or reclaim space automatically.
+SARGE’s main purpose is to **inventory photos and videos across multiple drives**, including USB and external drives that are currently disconnected. It tracks individual media files along with counts and storage sizes across your collection, even when a registered drive is offline. For photos, SARGE can **match RAW originals with their edited/exported images** using configurable file-format pairs; **Canon CR2 to JPG is just a default example**, not a limitation. Multiple RAW and export formats can be configured to suit different cameras and workflows. CR2 originals can also qualify independently as **Important RAWs** through filesystem locks or Photo Mechanic tags. Copy matched RAWs and exports, Important RAWs, or other unmatched files to selected destinations to support storage management. Copies are verified; SARGE does not delete your originals or reclaim space automatically.
 
 Windows 10/11 x64 is the primary target. No Docker, Python, helper, or ExifTool installation is required. macOS is a bonus development target. This beta installer is unsigned and needs further hands-on testing.
 
@@ -29,18 +29,27 @@ If **Microsoft Defender Antivirus reports a named threat**, don’t assume it is
 - Register multiple drives or folders with nicknames, descriptions, volume identity and dates extracted from folder names.
 - Scan nested folders without a depth limit; directory links are not followed.
 - Match RAW identifiers in export filenames and parent folders; review suggestions and confirm relationships manually.
+- Detect Important CR2 RAWs by default from Windows filesystem Read Only flags or supported Photo Mechanic metadata. Keep importance separate from RAW/export matching, with a count, badge, evidence details and independent filters.
 - Sort every optional metadata column, customize actual and mapped EXIF columns, and export CSV. **EXIF Filters** provides searchable catalog-derived choices, missing values and numeric/date ranges, including offline sources.
 - Read shutter speeds in conventional form, such as **0.6 s** or **1/250 s**, while keeping numeric precision for sorting and filtering.
 - Build filename mappings visually in **Filename conventions**, using an example file, highlighted text, field picklists and file-type checkboxes. The default CR2 rule maps the prefix before `_` to Camera body (Mapped), separately from actual EXIF.
 - Keep metadata and optional previews in the local SQLite catalog for offline browsing.
 - Open original photos or reveal them in Explorer when their source is available.
 - Run Scan only, Scan and copy, or Copy only on an individual source or all available registered sources. Confirm before skipping offline sources.
-- Copy matched, unmatched or both categories, preserving folders, verifying SHA-256 and protecting existing different files.
+- Copy matched / Important RAWs, other unmatched files or both categories, preserving folders, verifying SHA-256 and protecting existing different files. Important CR2 copies include associated XMP sidecars and preserve source read-only flags on Windows.
 - View prominent online/offline counts and per-location file/RAW/export/matched/unmatched counts and sizes, including offline catalogs.
 - Monitor bulk scan/copy operations as one activity block with aggregate progress and expandable location results.
 - Back up the catalog, cached previews and preferences in one archive with restore instructions.
 
 Beta.8 adds manual **Help → Check for Updates…** and a saved, default-enabled startup check at most once per 24 hours. It contacts GitHub without sending catalog contents, filenames or paths, and can be disabled in Settings. Installation remains manual. See [update-check behavior and review plan](docs/UPDATE-CHECKS.md).
+
+## Important RAWs (beta.9)
+
+**Rescan existing locations after installing beta.9** to collect importance evidence. A CR2 qualifies when its Windows filesystem Read Only flag is set **or** a positive Photo Mechanic tag is found in supported embedded XMP, sibling XMP sidecars or legacy Photo Mechanic trailer metadata. Photo Mechanic tags, camera/file locks, star ratings and RAW/export matches are separate signals; ratings alone do not qualify a file.
+
+Use **Important RAWs**, **Filesystem-locked CR2s** or **Photo Mechanic tagged CR2s** in the inventory filter. An Important RAW can still be unmatched: it goes to the **Matched / Important RAWs and exports** copy destination independently of export matching. Leaving that destination empty omits Important RAWs, even when the unmatched destination is selected. SARGE copies originals without deleting or moving them.
+
+A filesystem lock does not prove that a Canon camera set it, and lost attributes or sidecars can make historical selections unrecoverable. Conflicting Photo Mechanic values are shown in file details; positive evidence still qualifies. Native lock detection is Windows-only. Real camera-original and installed Photo Mechanic interoperability validation remains pending; automated fixtures do not establish that every ingest workflow preserves selections. See [detection limits and copy behavior](desktop/README.md#important-cr2-raws-beta9).
 
 ## Appearance and screenshots
 
