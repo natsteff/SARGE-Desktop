@@ -259,3 +259,12 @@ test('Important RAW classification is independent, filterable and explained befo
  status.value='tagged';status.dispatchEvent(new w.Event('change'));assert.match(d.querySelector('#files').textContent,/1DX_1/);
  d.querySelector('[data-job]').click();assert.match(d.querySelector('#dialogContent').textContent,/Matched \/ Important RAWs/);
 });
+
+
+test('Important RAW definition is visible in inventory, details and copy review',async t=>{
+ const {w,d}=await boot(t);const definition='Important RAWs are CR2 files marked read-only or tagged in Photo Mechanic. They qualify for copying even without a matching export.';
+ assert.ok([...d.querySelectorAll('#metrics .metric')].find(e=>e.textContent.includes('Important RAWs')).textContent.includes(definition));
+ assert.ok(w.importanceDetails({kind:'raw',name:'sample.cr2',important:true,metadata:'{}'}).includes(definition));
+ w.confirmCopy({mode:'copy',matched:'D:\\selected',unmatched:'',bulk:false,include_videos:false},[source]);
+ assert.ok(d.querySelector('#dialogContent').textContent.includes(definition));assert.match(d.querySelector('#dialogContent').textContent,/matched \/ Important destination/);
+});
