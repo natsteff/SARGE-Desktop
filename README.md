@@ -5,7 +5,7 @@
 **Scole’s Archive of RAWs, Galleries & Exports**  
 *Reporting for photo duty*
 
-[**Download Windows Beta 0.3.0-beta.9**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.9) — Adds Important RAW detection for filesystem-locked or Photo Mechanic-tagged CR2s, with independent filters and verified copying of RAWs and their XMP sidecars.
+[**Download Windows Beta 0.3.0-beta.10**](https://github.com/natsteff/SARGE-Desktop/releases/tag/v0.3.0-beta.10) — Explains Important RAWs beside the inventory count, in file details and in copy review; detection and copying behavior are unchanged.
 
 [All releases](https://github.com/natsteff/SARGE-Desktop/releases) · [Setup and usage](desktop/README.md)
 
